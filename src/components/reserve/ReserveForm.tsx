@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { cn } from "@/lib/cn";
@@ -67,6 +67,27 @@ export function ReserveForm({ defaultCardId }: { defaultCardId?: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ id: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (defaultCardId === "workshop-custom") {
+      try {
+        const saved = localStorage.getItem("floriography_workshop_blueprint");
+        if (saved) {
+          const blueprint = JSON.parse(saved);
+          setForm((s) => ({
+            ...s,
+            budgetTwd: String(blueprint.totalPrice || ""),
+            purpose: "自訂卡片委託",
+            customRequest: `【工作坊客製化藍圖明細】\n底紙選用：${blueprint.baseName || "經典卡"}\n圖層配置清單：\n${
+              blueprint.layers?.map((l: any, idx: number) => `[圖層 ${idx + 1}] ${l.symbol || "❀"} ${l.name} (單價: NT$${l.price})`).join("\n") || "無"
+            }\n總試算定價：NT$${blueprint.totalPrice}\n\n期望依據此藍圖客製實體作品。`,
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved blueprint", e);
+      }
+    }
+  }, [defaultCardId]);
 
   const canSubmit = useMemo(() => {
     const parsed = schema.safeParse(form);

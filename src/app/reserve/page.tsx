@@ -40,6 +40,11 @@ export default async function ReservePage({
                 {card.title}
               </Link>
             </p>
+          ) : cardId === "workshop-custom" ? (
+            <div className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[color:var(--accent)]/10 px-3 py-2 text-xs font-semibold text-[color:var(--accent)] border border-[color:var(--accent)]/20 animate-fade-in">
+              <span>🎨</span>
+              <span>已成功載入您的「工作坊自訂設計藍圖」，請確認下方客製明細並送出委託。</span>
+            </div>
           ) : (
             <p className="mt-5 text-sm text-[color:var(--muted)]">
               還沒決定要哪一張？可以先{" "}

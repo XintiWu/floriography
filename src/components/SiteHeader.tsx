@@ -9,6 +9,7 @@ const nav = [
   { href: "/cards", label: "作品" },
   { href: "/floriography", label: "花語" },
   { href: "/recommend", label: "情境推薦" },
+  { href: "/workshop", label: "工作坊" },
   { href: "/custom", label: "客製委託" },
   { href: "/faq", label: "FAQ" },
 ];
