@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 
@@ -13,18 +13,17 @@ const MOCK_BASES = [
 ];
 
 const MOCK_FLOWERS = [
-  { id: "fl-1", name: "永生經典紅玫瑰", price: 120, symbol: "🌹", color: "#e63946", desc: "濃烈真摯的深情寓意" },
-  { id: "fl-2", name: "典雅純淨藍星花", price: 90, symbol: "💮", color: "#457b9d", desc: "互信與不變的守候" },
-  { id: "fl-3", name: "向日葵微縮花片", price: 100, symbol: "🌻", color: "#e9c46a", desc: "朝向陽光與希望的目光" },
-  { id: "fl-4", name: "純真白鬱金香", price: 110, symbol: "🌷", color: "#f1faee", desc: "純潔無瑕的美好期盼" },
-  { id: "fl-5", name: "淡雅多瓣紫羅蘭", price: 95, symbol: "🪻", color: "#a2d2ff", desc: "永恆的美麗與思念" },
+  { id: "fl-1", name: "紅粉佳人玫瑰", price: 120, image: "/images/flowers/IMG_8705_processed.png" },
+  { id: "fl-2", name: "多瓣柔粉桔梗", price: 110, image: "/images/flowers/IMG_8706_processed.png" },
+  { id: "fl-3", name: "初春紫嫣薰衣草", price: 95, image: "/images/flowers/IMG_8708_processed.png" },
+  { id: "fl-4", name: "陽光暖黃向日葵", price: 100, image: "/images/flowers/IMG_8709_processed.png" },
+  { id: "fl-5", name: "純淨初雪白鬱金香", price: 130, image: "/images/flowers/IMG_8710_processed.png" },
 ];
 
 const MOCK_ACCENTS = [
-  { id: "ac-1", name: "圓葉尤加利細枝", price: 40, symbol: "🌿", color: "#2a9d8f", desc: "清新草本線條襯托" },
-  { id: "ac-2", name: "天然乾物滿天星", price: 50, symbol: "✨", color: "#e76f51", desc: "點綴空間感與立體光芒" },
-  { id: "ac-3", name: "奢華手工點綴金箔", price: 80, symbol: "🌟", color: "#ffb703", desc: "高光輕奢質感提升" },
-  { id: "ac-4", name: "幸運四葉草標本", price: 60, symbol: "☘️", color: "#264653", desc: "不可多得的幸運象徵" },
+  { id: "ac-1", name: "尤加利青綠葉脈", price: 50, image: "/images/flowers/IMG_8711_processed.png" },
+  { id: "ac-2", name: "立體乾燥滿天星", price: 40, image: "/images/flowers/IMG_8712_processed.png" },
+  { id: "ac-3", name: "奢華點綴金箔", price: 80, symbol: "🌟" },
 ];
 
 export interface StudioLayer {
@@ -33,6 +32,7 @@ export interface StudioLayer {
   name: string;
   price: number;
   symbol?: string;
+  image?: string;
   text?: string;
   x: number; // 0 - 100 percentage
   y: number; // 0 - 100 percentage
@@ -55,12 +55,12 @@ export function WorkshopStudio() {
     {
       id: "layer-init",
       type: "flower",
-      name: "永生經典紅玫瑰",
+      name: "紅粉佳人玫瑰",
       price: 120,
-      symbol: "🌹",
-      x: 45,
-      y: 40,
-      scale: 1.2,
+      image: "/images/flowers/IMG_8705_processed.png",
+      x: 50,
+      y: 50,
+      scale: 1.0,
       zIndex: 1,
     },
   ]);
@@ -71,8 +71,86 @@ export function WorkshopStudio() {
   // 自訂文字刻字暫存狀態
   const [customTextContent, setCustomTextContent] = useState("");
 
+  // 拖曳互動支援 (PowerPoint / Canva 風格)
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [draggingLayerId, setDraggingLayerId] = useState<string | null>(null);
+  const [showCenterX, setShowCenterX] = useState(false);
+  const [showCenterY, setShowCenterY] = useState(false);
+
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    initX: number;
+    initY: number;
+  } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, layer: StudioLayer) => {
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
+    setActiveLayerId(layer.id);
+    setDraggingLayerId(layer.id);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: layer.x,
+      initY: layer.y,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>, layerId: string) => {
+    if (draggingLayerId !== layerId || !dragRef.current || !canvasRef.current) return;
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const deltaX = e.clientX - dragRef.current.startX;
+    const deltaY = e.clientY - dragRef.current.startY;
+
+    const deltaPercentX = (deltaX / rect.width) * 100;
+    const deltaPercentY = (deltaY / rect.height) * 100;
+
+    let targetX = dragRef.current.initX + deltaPercentX;
+    let targetY = dragRef.current.initY + deltaPercentY;
+
+    // 智能對齊輔助線 (Smart Guides Snap to Center)
+    const snapThreshold = 2.5;
+    let isSnappedX = false;
+    let isSnappedY = false;
+
+    if (Math.abs(targetX - 50) < snapThreshold) {
+      targetX = 50;
+      isSnappedX = true;
+    }
+    if (Math.abs(targetY - 50) < snapThreshold) {
+      targetY = 50;
+      isSnappedY = true;
+    }
+
+    setShowCenterX(isSnappedX);
+    setShowCenterY(isSnappedY);
+
+    targetX = Math.max(0, Math.min(100, +targetX.toFixed(1)));
+    targetY = Math.max(0, Math.min(100, +targetY.toFixed(1)));
+
+    setLayers((s) =>
+      s.map((l) => (l.id === layerId ? { ...l, x: targetX, y: targetY } : l))
+    );
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+    setDraggingLayerId(null);
+    dragRef.current = null;
+    setShowCenterX(false);
+    setShowCenterY(false);
+  };
+
   // 新增素材至畫布
-  const addLayer = (item: { name: string; price: number; symbol?: string; type: "flower" | "accent" | "text"; text?: string }) => {
+  const addLayer = (item: { name: string; price: number; symbol?: string; image?: string; type: "flower" | "accent" | "text"; text?: string }) => {
     const nextZ = layers.length > 0 ? Math.max(...layers.map((l) => l.zIndex)) + 1 : 1;
     // 隨機錯開預設座標，營造手作擺置的動態感
     const randomX = 30 + Math.floor(Math.random() * 40);
@@ -84,6 +162,7 @@ export function WorkshopStudio() {
       name: item.name,
       price: item.price,
       symbol: item.symbol,
+      image: item.image,
       text: item.text,
       x: randomX,
       y: randomY,
@@ -159,6 +238,7 @@ export function WorkshopStudio() {
         name: l.name,
         price: l.price,
         symbol: l.symbol,
+        image: l.image,
         text: l.text,
       })),
       totalPrice,
@@ -270,59 +350,71 @@ export function WorkshopStudio() {
                   );
                 })}
 
-              {/* 主視覺花卉選單 */}
-              {activeTab === "flowers" &&
-                MOCK_FLOWERS.map((fl) => (
-                  <div
-                    key={fl.id}
-                    onClick={() => addLayer({ name: fl.name, price: fl.price, symbol: fl.symbol, type: "flower" })}
-                    className="p-3 rounded-2xl border border-[color:var(--line)] hover:border-[color:var(--accent)]/40 bg-[color:var(--background)]/40 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[color:var(--card)] border border-[color:var(--line)] shadow-xs flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        {fl.symbol}
+              {/* 主視覺花卉選單 (純圖片網格佈局) */}
+              {activeTab === "flowers" && (
+                <div className="grid grid-cols-2 gap-3">
+                  {MOCK_FLOWERS.map((fl) => (
+                    <div
+                      key={fl.id}
+                      onClick={() => addLayer({ name: fl.name, price: fl.price, image: fl.image, type: "flower" })}
+                      className="group relative aspect-square rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/40 hover:border-[color:var(--accent)] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] p-2 flex items-center justify-center cursor-pointer transition-all overflow-hidden shadow-xs"
+                    >
+                      {fl.image && (
+                        <img
+                          src={fl.image}
+                          alt={fl.name}
+                          className="w-full h-full object-contain filter drop-shadow-sm group-hover:scale-110 transition-transform duration-300 select-none"
+                        />
+                      )}
+                      
+                      {/* 懸浮覆蓋層顯示價格與名稱提示 */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-1.5 translate-y-full group-hover:translate-y-0 transition-transform duration-200 flex flex-col items-center justify-end">
+                        <span className="text-[10px] font-bold text-white truncate max-w-full leading-tight">{fl.name}</span>
+                        <span className="text-[9px] font-extrabold text-[color:var(--accent)] bg-white/90 dark:bg-black/90 px-1 rounded mt-0.5">+NT${fl.price}</span>
                       </div>
-                      <div>
-                        <p className="text-xs font-bold text-[color:var(--foreground)] group-hover:text-[color:var(--accent)] transition-colors">
-                          {fl.name}
-                        </p>
-                        <p className="text-[10px] text-[color:var(--muted)] mt-0.5 line-clamp-1">{fl.desc}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <span className="text-[10px] font-bold tracking-wide text-[color:var(--accent)] bg-[color:var(--accent)]/10 px-1.5 py-0.5 rounded">
-                        +NT${fl.price}
-                      </span>
-                    </div>
-                  </div>
-                ))}
 
-              {/* 配材點綴選單 */}
-              {activeTab === "accents" &&
-                MOCK_ACCENTS.map((ac) => (
-                  <div
-                    key={ac.id}
-                    onClick={() => addLayer({ name: ac.name, price: ac.price, symbol: ac.symbol, type: "accent" })}
-                    className="p-3 rounded-2xl border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/40 bg-[color:var(--background)]/40 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer transition-all flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[color:var(--card)] border border-[color:var(--line)] shadow-xs flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        {ac.symbol}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-[color:var(--foreground)] group-hover:text-[color:var(--accent-2)] transition-colors">
-                          {ac.name}
-                        </p>
-                        <p className="text-[10px] text-[color:var(--muted)] mt-0.5 line-clamp-1">{ac.desc}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <span className="text-[10px] font-bold tracking-wide text-[color:var(--accent-2)] bg-[color:var(--accent-2)]/10 px-1.5 py-0.5 rounded">
-                        +NT${ac.price}
+                      {/* 常駐右上角精巧小價格標籤 */}
+                      <span className="absolute top-1.5 right-1.5 text-[8px] font-extrabold text-[color:var(--muted)] group-hover:opacity-0 transition-opacity bg-[color:var(--card)]/80 backdrop-blur-xs px-1 py-0.5 rounded border border-[color:var(--line)]">
+                        ${fl.price}
                       </span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+
+              {/* 配材點綴選單 (純圖片網格佈局) */}
+              {activeTab === "accents" && (
+                <div className="grid grid-cols-2 gap-3">
+                  {MOCK_ACCENTS.map((ac) => (
+                    <div
+                      key={ac.id}
+                      onClick={() => addLayer({ name: ac.name, price: ac.price, image: ac.image, symbol: ac.symbol, type: "accent" })}
+                      className="group relative aspect-square rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/40 hover:border-[color:var(--accent-2)] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] p-2 flex items-center justify-center cursor-pointer transition-all overflow-hidden shadow-xs"
+                    >
+                      {ac.image ? (
+                        <img
+                          src={ac.image}
+                          alt={ac.name}
+                          className="w-full h-full object-contain filter drop-shadow-sm group-hover:scale-110 transition-transform duration-300 select-none"
+                        />
+                      ) : (
+                        <span className="text-4xl group-hover:scale-110 transition-transform duration-300 select-none">{ac.symbol}</span>
+                      )}
+                      
+                      {/* 懸浮覆蓋層顯示價格與名稱提示 */}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-1.5 translate-y-full group-hover:translate-y-0 transition-transform duration-200 flex flex-col items-center justify-end">
+                        <span className="text-[10px] font-bold text-white truncate max-w-full leading-tight">{ac.name}</span>
+                        <span className="text-[9px] font-extrabold text-[color:var(--accent-2)] bg-white/90 dark:bg-black/90 px-1 rounded mt-0.5">+NT${ac.price}</span>
+                      </div>
+
+                      {/* 常駐右上角精巧小價格標籤 */}
+                      <span className="absolute top-1.5 right-1.5 text-[8px] font-extrabold text-[color:var(--muted)] group-hover:opacity-0 transition-opacity bg-[color:var(--card)]/80 backdrop-blur-xs px-1 py-0.5 rounded border border-[color:var(--line)]">
+                        ${ac.price}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* 心意燙金刻字 */}
               {activeTab === "text" && (
@@ -355,15 +447,30 @@ export function WorkshopStudio() {
               CANVAS STAGE
             </span>
             <span className="absolute top-2 right-3 text-[9px] text-[color:var(--muted)]">
-              {layers.length} 疊加元素
+              {draggingLayerId ? (
+                <span className="text-[color:var(--accent)] font-bold animate-pulse">
+                  X: {layers.find((l) => l.id === draggingLayerId)?.x}% | Y: {layers.find((l) => l.id === draggingLayerId)?.y}%
+                </span>
+              ) : (
+                `${layers.length} 疊加元素`
+              )}
             </span>
 
             {/* 實體擬真卡片主體 (外掛光澤與陰影) */}
             <div
+              ref={canvasRef}
               onClick={() => setActiveLayerId(null)} // 點擊空白處取消選取
               className="w-full aspect-[3/4] rounded-2xl shadow-xl transition-colors duration-500 relative overflow-hidden border border-black/10 my-4 cursor-crosshair flex flex-col items-center justify-center select-none"
               style={{ backgroundColor: selectedBase.color }}
             >
+              {/* 智能中心對齊輔助線 (Smart Guides) */}
+              {showCenterX && (
+                <div className="absolute left-1/2 top-0 bottom-0 w-[1.5px] bg-[color:var(--accent)] border-x border-white/40 z-20 pointer-events-none animate-fade-in" />
+              )}
+              {showCenterY && (
+                <div className="absolute top-1/2 left-0 right-0 h-[1.5px] bg-[color:var(--accent)] border-y border-white/40 z-20 pointer-events-none animate-fade-in" />
+              )}
+
               {/* 卡片優雅的燙金內邊框裝飾線 */}
               <div className="absolute inset-3 border border-black/[0.08] dark:border-white/[0.12] rounded-xl pointer-events-none flex flex-col justify-between p-3">
                 <span className="text-[8px] text-[color:var(--muted)] tracking-widest uppercase opacity-40">Floriography</span>
@@ -373,6 +480,7 @@ export function WorkshopStudio() {
               {/* 渲染所有視覺圖層 */}
               {layers.map((layer) => {
                 const isActive = activeLayerId === layer.id;
+                const isDragging = draggingLayerId === layer.id;
 
                 return (
                   <div
@@ -381,14 +489,17 @@ export function WorkshopStudio() {
                       e.stopPropagation();
                       setActiveLayerId(layer.id);
                     }}
-                    className={`absolute transition-all duration-75 cursor-move flex flex-col items-center justify-center p-2 rounded-xl ${
-                      isActive ? "ring-2 ring-[color:var(--accent)] bg-black/5 dark:bg-white/5 z-30 scale-105" : ""
-                    }`}
+                    onPointerDown={(e) => handlePointerDown(e, layer)}
+                    onPointerMove={(e) => handlePointerMove(e, layer.id)}
+                    onPointerUp={handlePointerUp}
+                    className={`absolute cursor-grab active:cursor-grabbing flex flex-col items-center justify-center p-2 rounded-xl select-none ${
+                      isDragging ? "z-40 scale-105" : "transition-all duration-75"
+                    } ${isActive ? "ring-2 ring-[color:var(--accent)] bg-black/5 dark:bg-white/5 z-30 scale-105" : ""}`}
                     style={{
                       left: `${layer.x}%`,
                       top: `${layer.y}%`,
                       transform: `translate(-50%, -50%) scale(${layer.scale})`,
-                      zIndex: layer.zIndex,
+                      zIndex: isDragging ? 999 : layer.zIndex,
                     }}
                   >
                     {/* 若為文字圖層 */}
@@ -396,6 +507,13 @@ export function WorkshopStudio() {
                       <p className="font-[family-name:var(--font-display)] font-bold text-xs tracking-widest text-amber-600 dark:text-amber-400 border-b border-amber-500/30 pb-0.5 whitespace-nowrap shadow-xs">
                         {layer.text}
                       </p>
+                    ) : layer.image ? (
+                      /* 若為去背圖片素材 */
+                      <img
+                        src={layer.image}
+                        alt={layer.name}
+                        className="w-24 h-24 object-contain filter drop-shadow-md select-none pointer-events-none"
+                      />
                     ) : (
                       /* 若為花卉素材模擬符號 */
                       <span className="text-4xl filter drop-shadow-sm select-none">
@@ -462,7 +580,7 @@ export function WorkshopStudio() {
               ) : (
                 <div className="h-full rounded-2xl border border-dashed border-[color:var(--line)] flex items-center justify-center text-center p-3">
                   <p className="text-[11px] text-[color:var(--muted)]">
-                    點擊上方畫布內的素材符號<br />即可開啟圖層縮放與精確微調面板
+                    💡 提示：可直接拖曳畫布內的素材符號<br />點擊可開啟圖層縮放與精確微調面板
                   </p>
                 </div>
               )}
@@ -506,7 +624,11 @@ export function WorkshopStudio() {
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate pr-2">
-                        <span className="text-xs">{l.symbol || "✍️"}</span>
+                        {l.image ? (
+                          <img src={l.image} alt={l.name} className="w-4 h-4 object-contain shrink-0" />
+                        ) : (
+                          <span className="text-xs">{l.symbol || "✍️"}</span>
+                        )}
                         <span className="text-xs truncate max-w-[110px]">{l.name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
