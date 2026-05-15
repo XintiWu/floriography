@@ -12,19 +12,40 @@ const MOCK_BASES = [
   { id: "base-4", name: "香檳微光金卡", price: 520, color: "#e8dfd1", desc: "低調珠光質地，尊榮輕奢送禮首選" },
 ];
 
-const MOCK_FLOWERS = [
-  { id: "fl-1", name: "紅粉佳人玫瑰", price: 120, image: "/images/flowers/IMG_8705_processed.png" },
-  { id: "fl-2", name: "多瓣柔粉桔梗", price: 110, image: "/images/flowers/IMG_8706_processed.png" },
-  { id: "fl-3", name: "初春紫嫣薰衣草", price: 95, image: "/images/flowers/IMG_8708_processed.png" },
-  { id: "fl-4", name: "陽光暖黃向日葵", price: 100, image: "/images/flowers/IMG_8709_processed.png" },
-  { id: "fl-5", name: "純淨初雪白鬱金香", price: 130, image: "/images/flowers/IMG_8710_processed.png" },
+// 花材子分類資料
+const FLOWER_CATEGORIES = [
+  {
+    id: "seasonal", label: "當季花材", emoji: "🌸",
+    items: [
+      { id: "fl-1", name: "紅粉佳人玫瑰", price: 120, image: "/images/flowers/IMG_8705_processed.png", meaning: "高雅、美好、純潔的愛與友情" },
+      { id: "fl-2", name: "多瓣柔粉桔梗", price: 110, image: "/images/flowers/IMG_8706_processed.png", meaning: "真誠不變的愛、純潔、無望的愛" },
+      { id: "fl-3", name: "初春紫嫣薰衣草", price: 95, image: "/images/flowers/IMG_8708_processed.png", meaning: "等待愛情、安靜、堅貞、浪漫" },
+    ]
+  },
+  {
+    id: "kyoto", label: "經典花材", emoji: "⭐",
+    items: [
+      { id: "fl-4", name: "陽光暖黃向日葵", price: 100, image: "/images/flowers/IMG_8709_processed.png", meaning: "信念、光輝、高傲、忠誠、愛慕" },
+      { id: "fl-5", name: "純淨初雪白鬱金香", price: 130, image: "/images/flowers/IMG_8710_processed.png", meaning: "純潔、高尚、淡泊、純潔的戀情" },
+    ]
+  },
+  {
+    id: "combo", label: "組合花材", emoji: "💐",
+    items: [
+      { id: "fl-6", name: "春日粉彩混搭束", price: 180, image: "/images/flowers/IMG_8705_processed.png", meaning: "豐盛、喜悅、愛與感恩" },
+    ]
+  },
+  {
+    id: "tree", label: "樹材點綴", emoji: "🌿",
+    items: [
+      { id: "ac-1", name: "尤加利青綠葉脈", price: 50, image: "/images/flowers/IMG_8711_processed.png", meaning: "恩賜、回憶" },
+      { id: "ac-2", name: "立體乾燥滿天星", price: 40, image: "/images/flowers/IMG_8712_processed.png", meaning: "清純、關懷、戀愛、配角、真愛" },
+      { id: "ac-3", name: "奢華點綴金箔", price: 80, symbol: "🌟", meaning: "永恆、財富、閃耀的祝福" },
+    ]
+  },
 ];
 
-const MOCK_ACCENTS = [
-  { id: "ac-1", name: "尤加利青綠葉脈", price: 50, image: "/images/flowers/IMG_8711_processed.png" },
-  { id: "ac-2", name: "立體乾燥滿天星", price: 40, image: "/images/flowers/IMG_8712_processed.png" },
-  { id: "ac-3", name: "奢華點綴金箔", price: 80, symbol: "🌟" },
-];
+
 
 export interface StudioLayer {
   id: string;
@@ -34,6 +55,7 @@ export interface StudioLayer {
   symbol?: string;
   image?: string;
   text?: string;
+  meaning?: string;
   x: number; // 0 - 100 percentage
   y: number; // 0 - 100 percentage
   scale: number;
@@ -44,8 +66,18 @@ export interface StudioLayer {
 export function WorkshopStudio() {
   const router = useRouter();
 
-  // 活躍分頁切換 (素材類別)
-  const [activeTab, setActiveTab] = useState<"bases" | "flowers" | "accents" | "text">("flowers");
+  // 左側面板模式切換: 底紙 | 花材 | 文字
+  const [leftMode, setLeftMode] = useState<"bases" | "flowers" | "text">("flowers");
+  // 花材分類手風琴展開狀態 (預設全展開)
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(FLOWER_CATEGORIES.map(c => c.id)));
+
+  const toggleCategory = (id: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // 當前選用的底紙
   const [selectedBase, setSelectedBase] = useState(MOCK_BASES[0]);
@@ -58,6 +90,7 @@ export function WorkshopStudio() {
       name: "紅粉佳人玫瑰",
       price: 120,
       image: "/images/flowers/IMG_8705_processed.png",
+      meaning: "高雅、美好、純潔的愛與友情",
       x: 50,
       y: 50,
       scale: 1.0,
@@ -273,12 +306,89 @@ export function WorkshopStudio() {
     e.dataTransfer.setData("application/json", JSON.stringify(item));
     e.dataTransfer.effectAllowed = "copy";
     
-    // 自訂拖曳縮圖：解決原本帶有白底外框的醜陋預設拖曳影像
+    // 建立一個絕美的客製化拖曳資訊小卡
+    const ghost = document.createElement("div");
+    ghost.style.position = "absolute";
+    ghost.style.top = "-1000px";
+    ghost.style.left = "-1000px";
+    ghost.style.width = "120px";
+    ghost.style.height = "120px";
+    ghost.style.backgroundColor = "white"; 
+    ghost.style.borderRadius = "16px";
+    ghost.style.border = "1.5px solid #9c665c";
+    ghost.style.display = "flex";
+    ghost.style.flexDirection = "column";
+    ghost.style.alignItems = "center";
+    ghost.style.justifyContent = "center";
+    ghost.style.boxShadow = "0 10px 25px -5px rgba(0, 0, 0, 0.15)";
+    ghost.style.overflow = "hidden";
+    ghost.style.fontFamily = "system-ui, -apple-system, sans-serif";
+
+    // 價格標籤 (右上角)
+    const priceTag = document.createElement("div");
+    priceTag.innerText = `$${item.price}`;
+    priceTag.style.position = "absolute";
+    priceTag.style.top = "6px";
+    priceTag.style.right = "6px";
+    priceTag.style.fontSize = "10px";
+    priceTag.style.fontWeight = "bold";
+    priceTag.style.color = "#9c665c";
+    priceTag.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+    priceTag.style.padding = "2px 6px";
+    priceTag.style.borderRadius = "6px";
+    priceTag.style.border = "1px solid #ecd9d6";
+    ghost.appendChild(priceTag);
+
+    // 圖片或符號
     if (item.image) {
-       const img = new Image();
-       img.src = item.image;
-       e.dataTransfer.setDragImage(img, 50, 50);
+      const img = new Image();
+      img.src = item.image;
+      img.style.width = "75px";
+      img.style.height = "75px";
+      img.style.objectFit = "contain";
+      img.style.marginBottom = "10px";
+      ghost.appendChild(img);
+    } else if (item.symbol) {
+      const span = document.createElement("span");
+      span.innerText = item.symbol;
+      span.style.fontSize = "45px";
+      span.style.marginBottom = "10px";
+      ghost.appendChild(span);
     }
+
+    // 底部文字與漸層遮罩
+    const bottomBar = document.createElement("div");
+    bottomBar.style.position = "absolute";
+    bottomBar.style.bottom = "0";
+    bottomBar.style.left = "0";
+    bottomBar.style.right = "0";
+    bottomBar.style.background = "linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%)";
+    bottomBar.style.padding = "16px 8px 6px 8px";
+    bottomBar.style.display = "flex";
+    bottomBar.style.alignItems = "flex-end";
+    bottomBar.style.justifyContent = "center";
+    
+    const nameStr = document.createElement("span");
+    nameStr.innerText = item.name;
+    nameStr.style.color = "white";
+    nameStr.style.fontSize = "10px";
+    nameStr.style.fontWeight = "bold";
+    nameStr.style.textAlign = "center";
+    nameStr.style.whiteSpace = "nowrap";
+    nameStr.style.textOverflow = "ellipsis";
+    nameStr.style.overflow = "hidden";
+    
+    bottomBar.appendChild(nameStr);
+    ghost.appendChild(bottomBar);
+
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 60, 60);
+
+    setTimeout(() => {
+      if (document.body.contains(ghost)) {
+        document.body.removeChild(ghost);
+      }
+    }, 0);
   };
 
   const handlePanelDragStart = (e: React.DragEvent<HTMLDivElement>, id: string) => {
@@ -355,7 +465,7 @@ export function WorkshopStudio() {
 
   // 新增素材至畫布
   const addLayer = (
-    item: { name: string; price: number; symbol?: string; image?: string; type: "flower" | "accent" | "text"; text?: string },
+    item: { name: string; price: number; symbol?: string; image?: string; type: "flower" | "accent" | "text"; text?: string; meaning?: string },
     x?: number,
     y?: number
   ) => {
@@ -372,6 +482,7 @@ export function WorkshopStudio() {
       symbol: item.symbol,
       image: item.image,
       text: item.text,
+      meaning: item.meaning,
       x: finalX,
       y: finalY,
       scale: 1.0,
@@ -479,312 +590,175 @@ export function WorkshopStudio() {
     }
   };
 
+  const activeLayer = layers.find(l => l.id === activeLayerId);
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* 工作坊頂部狀態列 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-[color:var(--card)] border border-[color:var(--line)] rounded-2xl p-4 px-6 shadow-sm">
-        <div>
-          <span className="text-[10px] font-bold text-[color:var(--accent)] uppercase tracking-wider block">
-            LIVE PREVIEW STUDIO
-          </span>
-          <p className="text-sm font-semibold text-[color:var(--foreground)] mt-0.5">
-            自訂卡片設計工作室
-          </p>
-        </div>
+    <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch h-full">
 
-        <div className="flex items-center gap-4 self-end sm:self-auto">
-          <div className="text-right">
-            <span className="text-[10px] text-[color:var(--muted)] block">實時累計試算</span>
-            <span className="text-base font-extrabold text-[color:var(--accent)]">
-              NT$ {totalPrice}
-            </span>
+      {/* ══ 左側：素材庫面板 (col-span-4) ══ */}
+      <div className="lg:col-span-4">
+        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm overflow-hidden">
+          {/* 模式切換 Tab */}
+          <div className="flex border-b border-[color:var(--line)]">
+            {([["flowers","花材"],["bases","底紙"],["text","文字"]] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setLeftMode(mode)}
+                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${leftMode === mode ? "bg-[color:var(--background)] text-[#9c665c] border-b-2 border-[#9c665c]" : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}
+              >{label}</button>
+            ))}
           </div>
-          <Button size="sm" onClick={handleSaveAndCheckout} className="shrink-0 shadow-sm">
-            儲存並送出委託
-          </Button>
-        </div>
-      </div>
 
-      {/* 核心工作區域矩陣 (三欄互動佈局) */}
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-        
-        {/* 左側欄：素材調色盤面板 (lg:col-span-4) */}
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-sm">
-            <div className="flex justify-between items-center mb-3">
-              <p className="text-xs font-bold tracking-wider text-[color:var(--muted)] uppercase">
-                素材庫 Library
-              </p>
-              <span className="text-[10px] text-[color:var(--muted)] bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-full">
-                支援拖曳置入
-              </span>
+          {/* 花材：手風琴分類 */}
+          {leftMode === "flowers" && (
+            <div className="divide-y divide-[color:var(--line)]">
+              {FLOWER_CATEGORIES.map(cat => (
+                <div key={cat.id}>
+                  <button
+                    onClick={() => toggleCategory(cat.id)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[color:var(--background)] transition-colors"
+                  >
+                    <span className="flex items-center gap-2 text-[12px] font-bold text-[color:var(--foreground)]">
+                      <span>{cat.emoji}</span>{cat.label}
+                      <span className="text-[10px] font-normal text-[color:var(--muted)]">({cat.items.length})</span>
+                    </span>
+                    <svg className={`w-3.5 h-3.5 text-[color:var(--muted)] transition-transform duration-200 ${expandedCategories.has(cat.id) ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7"/></svg>
+                  </button>
+
+                  {expandedCategories.has(cat.id) && (
+                    <div className="grid grid-cols-3 gap-2 px-3 pb-4 pt-1">
+                      {cat.items.map(item => (
+                        <div
+                          key={item.id}
+                          draggable
+                          onDragStart={e => handleDragStartNewItem(e, { ...item, type: cat.id === "tree" ? "accent" : "flower" })}
+                          onClick={() => addLayer({ ...item, type: cat.id === "tree" ? "accent" : "flower" })}
+                          className="group relative aspect-square rounded-lg border border-[color:var(--line)] bg-[color:var(--background)] hover:border-[#9c665c]/60 hover:bg-[#9c665c]/5 p-1.5 flex items-center justify-center cursor-grab active:cursor-grabbing transition-all overflow-hidden"
+                        >
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-200 select-none pointer-events-none" />
+                          ) : (
+                            <span className="text-2xl select-none pointer-events-none">{(item as any).symbol}</span>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[8px] font-bold text-white block text-center truncate leading-tight">{item.name}</span>
+                          </div>
+                          <span className="absolute top-1 right-1 text-[7px] font-extrabold text-[#9c665c] bg-white/85 px-1 py-0.5 rounded leading-none">${item.price}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+          )}
 
-            {/* 類別切換 Tabs */}
-            <div className="grid grid-cols-4 gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl mb-4 text-center">
-              {[
-                { id: "bases", label: "底紙" },
-                { id: "flowers", label: "主花" },
-                { id: "accents", label: "配材" },
-                { id: "text", label: "刻字" },
-              ].map((t) => {
-                const isActive = activeTab === t.id;
+          {/* 底紙選擇 */}
+          {leftMode === "bases" && (
+            <div className="p-3 flex flex-col gap-2">
+              {MOCK_BASES.map(b => {
+                const isCurrent = selectedBase.id === b.id;
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setActiveTab(t.id as any)}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all ${
-                      isActive
-                        ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
-                        : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
-                    }`}
+                    key={b.id}
+                    onClick={() => setSelectedBase(b)}
+                    className={`w-full p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${isCurrent ? "border-[#9c665c] bg-[#9c665c]/5 shadow-sm" : "border-[color:var(--line)] hover:border-[color:var(--muted)]/40 bg-[color:var(--background)]"}`}
                   >
-                    {t.label}
+                    <div className="w-8 h-8 rounded-full border border-black/10 shadow-inner shrink-0" style={{ backgroundColor: b.color }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold truncate">{b.name}</p>
+                      <p className="text-[10px] text-[color:var(--muted)] truncate">{b.desc}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#9c665c] shrink-0">${b.price}</span>
                   </button>
                 );
               })}
             </div>
+          )}
 
-            {/* 素材清單呈現區 */}
-            <div className="flex flex-col gap-2.5 max-h-[420px] overflow-y-auto pr-1 pb-4">
-              {/* 底色紙卡選單 */}
-              {activeTab === "bases" &&
-                MOCK_BASES.map((b) => {
-                  const isCurrent = selectedBase.id === b.id;
-                  return (
-                    <div
-                      key={b.id}
-                      onClick={() => setSelectedBase(b)}
-                      className={`p-3 rounded-2xl border text-left cursor-pointer transition-all flex items-center justify-between ${
-                        isCurrent
-                          ? "border-[color:var(--accent)] bg-[color:var(--accent)]/5 shadow-xs"
-                          : "border-[color:var(--line)] hover:border-[color:var(--muted)]/50 bg-[color:var(--background)]/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full border border-black/10 shadow-inner shrink-0"
-                          style={{ backgroundColor: b.color }}
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-[color:var(--foreground)]">{b.name}</p>
-                          <p className="text-[10px] text-[color:var(--muted)] mt-0.5 line-clamp-1">{b.desc}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-              {/* 主視覺花卉選單 */}
-              {activeTab === "flowers" && (
-                <div className="grid grid-cols-2 gap-3">
-                  {MOCK_FLOWERS.map((fl) => (
-                    <div
-                      key={fl.id}
-                      draggable
-                      onDragStart={(e) => handleDragStartNewItem(e, { ...fl, type: "flower" })}
-                      onClick={() => addLayer({ name: fl.name, price: fl.price, image: fl.image, type: "flower" })}
-                      className="group relative aspect-square rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/40 hover:border-[color:var(--accent)] hover:bg-[color:var(--accent)]/5 p-2 flex items-center justify-center cursor-grab active:cursor-grabbing transition-all overflow-hidden shadow-xs"
-                    >
-                      {fl.image && (
-                        <img
-                          src={fl.image}
-                          alt={fl.name}
-                          className="w-full h-full object-contain filter drop-shadow-sm group-hover:scale-110 transition-transform duration-300 select-none pointer-events-none"
-                        />
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-end">
-                        <span className="text-[10px] font-bold text-white truncate max-w-full">{fl.name}</span>
-                      </div>
-                      <span className="absolute top-1.5 right-1.5 text-[8px] font-extrabold text-[color:var(--muted)] bg-[color:var(--card)]/80 backdrop-blur-xs px-1 py-0.5 rounded border border-[color:var(--line)]">
-                        ${fl.price}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 配材點綴選單 */}
-              {activeTab === "accents" && (
-                <div className="grid grid-cols-2 gap-3">
-                  {MOCK_ACCENTS.map((ac) => (
-                    <div
-                      key={ac.id}
-                      draggable
-                      onDragStart={(e) => handleDragStartNewItem(e, { ...ac, type: "accent" })}
-                      onClick={() => addLayer({ name: ac.name, price: ac.price, image: ac.image, symbol: ac.symbol, type: "accent" })}
-                      className="group relative aspect-square rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/40 hover:border-[color:var(--accent-2)] hover:bg-[color:var(--accent-2)]/5 p-2 flex items-center justify-center cursor-grab active:cursor-grabbing transition-all overflow-hidden shadow-xs"
-                    >
-                      {ac.image ? (
-                        <img
-                          src={ac.image}
-                          alt={ac.name}
-                          className="w-full h-full object-contain filter drop-shadow-sm group-hover:scale-110 transition-transform duration-300 select-none pointer-events-none"
-                        />
-                      ) : (
-                        <span className="text-4xl group-hover:scale-110 transition-transform duration-300 select-none pointer-events-none">{ac.symbol}</span>
-                      )}
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-end">
-                        <span className="text-[10px] font-bold text-white truncate max-w-full">{ac.name}</span>
-                      </div>
-                      <span className="absolute top-1.5 right-1.5 text-[8px] font-extrabold text-[color:var(--muted)] bg-[color:var(--card)]/80 backdrop-blur-xs px-1 py-0.5 rounded border border-[color:var(--line)]">
-                        ${ac.price}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 心意燙金刻字 */}
-              {activeTab === "text" && (
-                <div className="p-4 rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/40 flex flex-col gap-3">
-                  <p className="text-xs font-semibold text-[color:var(--muted)]">輸入簡短字句，模擬手工燙金覆膜效果：</p>
-                  <input
-                    type="text"
-                    value={customTextContent}
-                    onChange={(e) => setCustomTextContent(e.target.value)}
-                    placeholder="例：Happy Birthday / 畢業快樂"
-                    className="h-10 rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] px-3 text-xs outline-none focus:ring-2 focus:ring-[color:var(--accent)]"
-                  />
-                  <Button size="sm" onClick={handleAddText} disabled={!customTextContent.trim()}>
-                    新增燙金圖層 (+NT$60)
-                  </Button>
-                </div>
-              )}
+          {/* 文字刻字 */}
+          {leftMode === "text" && (
+            <div className="p-4 flex flex-col gap-3">
+              <p className="text-[11px] text-[color:var(--muted)] leading-relaxed">輸入簡短字句，模擬手工燙金覆膜效果：</p>
+              <input
+                type="text"
+                value={customTextContent}
+                onChange={e => setCustomTextContent(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleAddText()}
+                placeholder="例：Happy Birthday"
+                className="h-10 rounded-lg border border-[color:var(--line)] bg-[color:var(--background)] px-3 text-xs outline-none focus:ring-2 focus:ring-[#9c665c]/40"
+              />
+              <Button size="sm" onClick={handleAddText} disabled={!customTextContent.trim()}>
+                新增燙金圖層 (+NT$60)
+              </Button>
             </div>
-
-            <p className="text-[10px] text-[color:var(--muted)] text-center mt-3 pt-2 border-t border-[color:var(--line)]/40 flex items-center justify-center gap-1">
-              <span>💡 提示：點擊或直接</span>
-              <span className="font-bold text-[color:var(--foreground)] border-b border-dashed border-[color:var(--muted)]">拖曳素材</span>
-              <span>至右側畫布</span>
-            </p>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* 中央區：高保真動態預覽畫布 (lg:col-span-5) */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center relative">
-          <div className="w-full max-w-md rounded-3xl border border-[color:var(--line)] bg-black/5 dark:bg-white/5 p-6 shadow-inner flex flex-col items-center justify-center relative min-h-[500px]">
-            
-            {/* 實體擬真卡片主體 */}
+      {/* ══ 中央：畫布區 (col-span-5) ══ */}
+      <div className="lg:col-span-5 flex flex-col items-center justify-end h-full">
+        <div className="w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-5 py-8 shadow-sm flex flex-col items-center relative min-h-[640px] mt-auto">
+          {/* 背景網格 */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:20px_20px] opacity-30 rounded-xl pointer-events-none" />
+
+          {/* 卡片區域與控制列 (共同容器，確保等寬) */}
+          <div className="relative w-full max-w-[340px] flex flex-col z-10 shrink-0">
+            {/* 1. 卡片本身 */}
             <div
               ref={canvasRef}
               onClick={() => setActiveLayerId(null)}
               onDragOver={handleDragOverCanvas}
               onDrop={handleDropOnCanvas}
-              className="w-full aspect-[3/4] rounded-2xl shadow-2xl transition-colors duration-500 relative my-4 cursor-default flex flex-col items-center justify-center select-none bg-cover bg-center"
+              className="w-full aspect-[3/4] rounded-2xl shadow-2xl transition-colors duration-500 relative cursor-default select-none"
               style={{ backgroundColor: selectedBase.color }}
             >
-              {/* 卡片優雅的燙金內邊框裝飾線 */}
-              <div className="absolute inset-3 border border-black/[0.08] dark:border-white/[0.12] rounded-xl pointer-events-none flex flex-col justify-between p-3 z-0">
-                <span className="text-[8px] text-[color:var(--muted)] tracking-widest uppercase opacity-40">Floriography</span>
-                <span className="text-[8px] text-[color:var(--muted)] tracking-widest text-right opacity-40">Studio</span>
+              <div className="absolute inset-3 border border-black/[0.07] dark:border-white/[0.1] rounded-xl pointer-events-none flex flex-col justify-between p-3 z-0">
+                <span className="text-[7px] text-black/30 tracking-widest uppercase">Floriography</span>
+                <span className="text-[7px] text-black/30 tracking-widest text-right">Studio</span>
               </div>
 
-              {/* 智能中心對齊輔助線 (Smart Guides) */}
-              {showCenterX && (
-                <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-[color:var(--accent)] z-20 pointer-events-none animate-fade-in opacity-50" />
-              )}
-              {showCenterY && (
-                <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-[color:var(--accent)] z-20 pointer-events-none animate-fade-in opacity-50" />
-              )}
+              {showCenterX && <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[#9c665c]/60 z-20 pointer-events-none" />}
+              {showCenterY && <div className="absolute top-1/2 left-0 right-0 h-px bg-[#9c665c]/60 z-20 pointer-events-none" />}
 
-              {/* 渲染所有視覺圖層 */}
-              {layers.map((layer) => {
+              {layers.map(layer => {
                 const isActive = activeLayerId === layer.id;
                 const isDragging = draggingLayerId === layer.id;
                 const isTransforming = transformingLayerId === layer.id;
-                
-                // 動態層級提昇
                 const currentZ = (isDragging || isTransforming) ? 999 : layer.zIndex;
-
                 return (
                   <div
                     key={layer.id}
-                    className={`absolute flex flex-col items-center justify-center p-0 select-none ${
-                      isDragging || isTransforming ? "transition-none" : "transition-all duration-75"
-                    }`}
-                    style={{
-                      left: `${layer.x}%`,
-                      top: `${layer.y}%`,
-                      transform: `translate(-50%, -50%) rotate(${layer.rotation || 0}deg) scale(${layer.scale})`,
-                      zIndex: currentZ,
-                    }}
-                    onClick={(e) => {
-                      // 防止點擊事件冒泡到畫布導致取消選取
-                      e.stopPropagation();
-                      setActiveLayerId(layer.id);
-                    }}
+                    className={`absolute flex flex-col items-center justify-center select-none ${isDragging || isTransforming ? "transition-none" : "transition-all duration-75"}`}
+                    style={{ left: `${layer.x}%`, top: `${layer.y}%`, transform: `translate(-50%,-50%) rotate(${layer.rotation||0}deg) scale(${layer.scale})`, zIndex: currentZ }}
                   >
-                    {/* Bounding Box 互動熱區與外框 */}
-                    <div 
+                    {isActive && <div className="absolute inset-0 bg-[#e6c1a8]/40 blur-2xl rounded-full scale-[1.8] pointer-events-none mix-blend-multiply dark:mix-blend-screen" />}
+                    <div
                       className="relative w-full h-full p-2 rounded-xl cursor-grab active:cursor-grabbing flex items-center justify-center"
-                      onPointerDown={(e) => handlePointerDown(e, layer)}
+                      onPointerDown={e => handlePointerDown(e, layer)}
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
+                      onClick={e => e.stopPropagation()}
                     >
-                      {/* 優雅背光發光效果 (Backlight glow) */}
                       {isActive && (
-                        <div className="absolute inset-0 bg-[#e6c1a8]/40 dark:bg-[#e6c1a8]/20 blur-2xl rounded-full scale-[1.8] pointer-events-none mix-blend-multiply dark:mix-blend-screen" />
+                        <>
+                          <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border-[3px] border-[#9c665c] rounded-full cursor-nwse-resize z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onPointerDown={e => handleScalePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#9c665c] pointer-events-none" />
+                          </div>
+                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-[3px] border-[#839b83] rounded-full cursor-crosshair z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onPointerDown={e => handleRotatePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()}>
+                            <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-[#839b83] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                          </div>
+                          <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#9c665c] text-white rounded-full cursor-pointer z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onClick={e => { e.stopPropagation(); deleteLayer(layer.id); }} onPointerDown={e => e.stopPropagation()}>
+                            <svg viewBox="0 0 24 24" className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </div>
+                        </>
                       )}
-                        
-                      {/* Scale Handle (右下角 - 棕紅邊框白底圓圈加上點點) */}
-                      {isActive && (
-                        <div 
-                          className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border-[3px] border-[#9c665c] rounded-full cursor-nwse-resize z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform"
-                          onPointerDown={(e) => handleScalePointerDown(e, layer)}
-                          onPointerMove={handlePointerMove}
-                          onPointerUp={handlePointerUp}
-                          onClick={(e) => e.stopPropagation()}
-                          title="拖曳縮放"
-                        >
-                           <span className="w-1.5 h-1.5 rounded-full bg-[#9c665c] pointer-events-none" />
-                        </div>
-                      )}
-
-                      {/* Rotate Handle (正上方 - 灰綠邊框白底圓圈加上旋轉符號) */}
-                      {isActive && (
-                        <div 
-                          className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-[3px] border-[#839b83] rounded-full cursor-crosshair z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform"
-                          onPointerDown={(e) => handleRotatePointerDown(e, layer)}
-                          onPointerMove={handlePointerMove}
-                          onPointerUp={handlePointerUp}
-                          onClick={(e) => e.stopPropagation()}
-                          title="拖曳旋轉"
-                        >
-                           <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-[#839b83] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                        </div>
-                      )}
-
-                      {/* Delete Handle (右上角 - 棕紅底白叉叉) */}
-                      {isActive && (
-                        <div 
-                          className="absolute -top-2 -right-2 w-7 h-7 bg-[#9c665c] text-white rounded-full cursor-pointer z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteLayer(layer.id);
-                          }}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          title="移除圖層"
-                        >
-                          <svg viewBox="0 0 24 24" className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </div>
-                      )}
-
-                      {/* Content 內容本體 */}
                       {layer.type === "text" ? (
-                        <p className="font-[family-name:var(--font-display)] font-bold text-xl tracking-widest text-amber-500 drop-shadow-sm whitespace-nowrap pointer-events-none relative z-10">
-                          {layer.text}
-                        </p>
+                        <p className="font-bold text-xl tracking-widest text-amber-500 drop-shadow-sm whitespace-nowrap pointer-events-none relative z-10">{layer.text}</p>
                       ) : layer.image ? (
-                        <img
-                          src={layer.image}
-                          alt={layer.name}
-                          className="w-28 h-28 object-contain filter drop-shadow-lg select-none pointer-events-none relative z-10"
-                        />
+                        <img src={layer.image} alt={layer.name} className="w-28 h-28 object-contain filter drop-shadow-lg select-none pointer-events-none relative z-10" />
                       ) : (
-                        <span className="text-5xl filter drop-shadow-lg select-none pointer-events-none relative z-10">
-                          {layer.symbol}
-                        </span>
+                        <span className="text-5xl filter drop-shadow-lg select-none pointer-events-none relative z-10">{layer.symbol}</span>
                       )}
                     </div>
                   </div>
@@ -792,174 +766,142 @@ export function WorkshopStudio() {
               })}
 
               {layers.length === 0 && (
-                <div className="text-center p-6 pointer-events-none opacity-50 z-10">
-                  <svg className="w-12 h-12 mx-auto mb-2 text-[color:var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-sm font-semibold">畫布尚無素材</p>
-                  <p className="text-[11px] mt-1">請自左側拖曳花材置入</p>
+                <div className="text-center p-6 pointer-events-none opacity-40 z-10 absolute inset-0 flex flex-col items-center justify-center">
+                  <svg className="w-10 h-10 mx-auto mb-2 text-[color:var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  <p className="text-xs font-semibold">從左側拖曳花材置入</p>
                 </div>
               )}
             </div>
 
-          </div>
-
-          {/* 浮動式精確控制工具列 (當有選取圖層時顯示) */}
-          <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-6 w-[90%] transition-all duration-300 ${activeLayerId ? "opacity-100 z-50" : "opacity-0 pointer-events-none -translate-y-4 z-[-1]"}`}>
-            <div className="bg-[color:var(--card)]/95 backdrop-blur-md border border-[color:var(--accent)]/40 rounded-2xl shadow-xl p-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between border-b border-[color:var(--line)]/60 pb-2 px-1">
-                <span className="text-[11px] font-bold text-[color:var(--accent)] flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  編輯: {layers.find((l) => l.id === activeLayerId)?.name}
-                </span>
-                <div className="flex gap-2">
-                  <button onClick={bringToFront} className="text-[10px] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-1" title="移至最上層">上移</button>
-                  <button onClick={sendToBack} className="text-[10px] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-1" title="移至最下層">下移</button>
-                  <button onClick={() => deleteLayer(activeLayerId!)} className="text-[10px] text-red-500 hover:text-red-600 font-semibold px-1 ml-1 border-l border-[color:var(--line)] pl-2" title="移除圖層">移除</button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between gap-4 px-1">
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] text-[color:var(--muted)] mb-0.5">精確縮放</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => adjustScale(-0.1)} className="w-6 h-6 rounded border bg-[color:var(--background)] hover:bg-[color:var(--accent)]/10 text-xs flex items-center justify-center">-</button>
-                      <span className="text-[10px] font-mono w-8 text-center">{layers.find((l) => l.id === activeLayerId)?.scale.toFixed(1)}x</span>
-                      <button onClick={() => adjustScale(0.1)} className="w-6 h-6 rounded border bg-[color:var(--background)] hover:bg-[color:var(--accent)]/10 text-xs flex items-center justify-center">+</button>
+            {/* 2. 精確控制列 (緊接在卡片正下方) */}
+            <div className={`mt-3 w-full bg-[color:var(--card)] border border-[color:var(--line)] rounded-xl shadow-md px-4 py-3 transition-all duration-300 ${activeLayer ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}>
+              {activeLayer && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-[#9c665c] truncate flex-1 tracking-wide">{activeLayer.name}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button onClick={() => adjustScale(-0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">-</button>
+                      <span className="text-sm font-mono w-11 text-center">{activeLayer.scale.toFixed(1)}x</span>
+                      <button onClick={() => adjustScale(0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">+</button>
                     </div>
                   </div>
-                  <div className="w-px h-8 bg-[color:var(--line)]" />
-                  <div className="flex flex-col">
-                    <span className="text-[9px] text-[color:var(--muted)] mb-0.5">精確旋轉</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => adjustRotation(-15)} className="w-6 h-6 rounded border bg-[color:var(--background)] hover:bg-[color:var(--accent)]/10 text-xs flex items-center justify-center">↺</button>
-                      <span className="text-[10px] font-mono w-9 text-center">{layers.find((l) => l.id === activeLayerId)?.rotation || 0}°</span>
-                      <button onClick={() => adjustRotation(15)} className="w-6 h-6 rounded border bg-[color:var(--background)] hover:bg-[color:var(--accent)]/10 text-xs flex items-center justify-center">↻</button>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <button onClick={() => adjustRotation(-15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↺</button>
+                      <span className="text-sm font-mono w-11 text-center">{activeLayer.rotation||0}°</span>
+                      <button onClick={() => adjustRotation(15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↻</button>
+                    </div>
+                    <div className="w-px h-6 bg-[color:var(--line)] shrink-0" />
+                    <div className="grid grid-cols-3 gap-1 w-[64px] shrink-0">
+                      <div/><button onClick={() => nudgePos("up")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▲</button><div/>
+                      <button onClick={() => nudgePos("left")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">◀</button>
+                      <button onClick={() => nudgePos("down")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▼</button>
+                      <button onClick={() => nudgePos("right")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▶</button>
                     </div>
                   </div>
                 </div>
-                
-                <div className="flex flex-col items-end">
-                   <span className="text-[9px] text-[color:var(--muted)] mb-0.5">微調位置</span>
-                   <div className="grid grid-cols-3 gap-0.5 w-[52px]">
-                     <div />
-                     <button onClick={() => nudgePos("up")} className="bg-[color:var(--line)]/50 hover:bg-[color:var(--accent)]/20 rounded h-4 text-[8px] flex items-center justify-center">▲</button>
-                     <div />
-                     <button onClick={() => nudgePos("left")} className="bg-[color:var(--line)]/50 hover:bg-[color:var(--accent)]/20 rounded h-4 text-[8px] flex items-center justify-center">◀</button>
-                     <button onClick={() => nudgePos("down")} className="bg-[color:var(--line)]/50 hover:bg-[color:var(--accent)]/20 rounded h-4 text-[8px] flex items-center justify-center">▼</button>
-                     <button onClick={() => nudgePos("right")} className="bg-[color:var(--line)]/50 hover:bg-[color:var(--accent)]/20 rounded h-4 text-[8px] flex items-center justify-center">▶</button>
-                   </div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
-
-        {/* 右側欄：圖層結構清單與結帳中心 (lg:col-span-3) */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
-          <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-sm flex flex-col h-full min-h-[400px]">
-            <div className="flex-1">
-              <p className="text-xs font-bold tracking-wider text-[color:var(--muted)] uppercase mb-3">
-                圖層面板 Layers
-              </p>
-
-              {/* 固定底層明細 */}
-              <div className="p-2.5 rounded-xl bg-[color:var(--background)] border border-[color:var(--line)] flex items-center justify-between mb-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                   <div className="w-4 h-4 rounded-full border border-black/10 shadow-inner" style={{ backgroundColor: selectedBase.color }} />
-                  <div>
-                    <span className="text-[9px] text-[color:var(--muted)] block leading-tight">底座紙材</span>
-                    <span className="text-[11px] font-bold text-[color:var(--foreground)]">{selectedBase.name}</span>
-                  </div>
-                </div>
-                <span className="text-[11px] font-bold text-[color:var(--muted)]">${selectedBase.price}</span>
-              </div>
-
-              {/* 疊加圖層清單 (反向排列，符合視覺上層在上面的邏輯) */}
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span className="text-[10px] font-semibold text-[color:var(--muted)]">
-                  裝飾元素 ({layers.length})
-                </span>
-                <span className="text-[9px] text-[color:var(--muted)]/70">由上到下排序</span>
-              </div>
-              
-              <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto pr-1">
-                {[...layers].sort((a, b) => b.zIndex - a.zIndex).map((l) => {
-                  const isSelected = activeLayerId === l.id;
-                  const isPanelDragging = panelDraggingLayerId === l.id;
-                  return (
-                    <div
-                      key={l.id}
-                      draggable
-                      onDragStart={(e) => handlePanelDragStart(e, l.id)}
-                      onDragOver={handlePanelDragOver}
-                      onDrop={(e) => handlePanelDrop(e, l.id)}
-                      onDragEnd={() => setPanelDraggingLayerId(null)}
-                      onClick={() => setActiveLayerId(l.id)}
-                      className={`p-2 px-3 rounded-xl border text-left cursor-grab active:cursor-grabbing transition-all flex items-center justify-between group ${
-                        isSelected
-                          ? "border-[#9c665c] bg-[#9c665c]/10 text-[#9c665c] shadow-sm"
-                          : "border-[color:var(--line)] hover:bg-[color:var(--background)] hover:border-[color:var(--muted)]/30 text-[color:var(--foreground)]/90"
-                      } ${isPanelDragging ? "opacity-30 border-dashed" : "opacity-100"}`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate pointer-events-none">
-                        <div className="w-5 h-5 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded shadow-inner shrink-0">
-                          {l.image ? (
-                            <img src={l.image} alt={l.name} className="w-4 h-4 object-contain" />
-                          ) : (
-                            <span className="text-[10px]">{l.symbol || "✍️"}</span>
-                          )}
-                        </div>
-                        <div className="flex flex-col">
-                           <span className={`text-[11px] truncate max-w-[90px] ${isSelected ? "font-bold" : "font-medium"}`}>{l.name}</span>
-                           <span className="text-[9px] opacity-60">Z-index: {l.zIndex}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-bold">+{l.price}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteLayer(l.id);
-                          }}
-                          className="text-[10px] text-[color:var(--muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                          title="移除"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {layers.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-6 border border-dashed border-[color:var(--line)] rounded-xl opacity-60">
-                    <span className="text-xl mb-1">🍃</span>
-                    <p className="text-[10px] text-center text-[color:var(--muted)]">沒有任何花材</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 底部行動呼籲區塊 */}
-            <div className="border-t border-[color:var(--line)]/60 pt-4 mt-4">
-              <div className="flex items-end justify-between mb-3">
-                <span className="text-xs font-medium text-[color:var(--muted)]">設計總額</span>
-                <div className="text-right">
-                  <span className="text-[10px] text-[color:var(--accent)] font-bold block mb-0.5">TWD</span>
-                  <span className="text-2xl font-extrabold text-[color:var(--foreground)] leading-none">${totalPrice}</span>
-                </div>
-              </div>
-
-              <Button onClick={handleSaveAndCheckout} className="w-full shadow-md py-3 text-sm font-bold bg-gradient-to-r from-[color:var(--accent)] to-[color:var(--accent-2)] hover:opacity-90 transition-opacity border-none text-white">
-                確認設計，送出委託
-              </Button>
-            </div>
-          </div>
-        </div>
-
       </div>
+
+      {/* ══ 右側：圖層 + 花語 + 結帳 (col-span-3) ══ */}
+      <div className="lg:col-span-3 flex flex-col gap-4">
+
+        {/* 圖層面板 */}
+        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-[color:var(--line)] flex items-center justify-between">
+            <span className="text-[11px] font-bold tracking-widest text-[color:var(--muted)] uppercase">圖層 Layers</span>
+            <span className="text-[10px] text-[color:var(--muted)]">{layers.length} 層</span>
+          </div>
+          <div className="p-3 flex flex-col gap-1.5 max-h-[260px] overflow-y-auto">
+            {/* 底紙固定層 */}
+            <div className="p-2.5 rounded-lg bg-[color:var(--background)] border border-[color:var(--line)] flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: selectedBase.color }} />
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] text-[color:var(--muted)] block">底紙</span>
+                <span className="text-[10px] font-bold truncate block">{selectedBase.name}</span>
+              </div>
+              <span className="text-[10px] font-bold text-[color:var(--muted)]">${selectedBase.price}</span>
+            </div>
+
+            {[...layers].sort((a,b) => b.zIndex - a.zIndex).map(l => {
+              const isSelected = activeLayerId === l.id;
+              const isPanelDragging = panelDraggingLayerId === l.id;
+              return (
+                <div
+                  key={l.id}
+                  draggable
+                  onDragStart={e => handlePanelDragStart(e, l.id)}
+                  onDragOver={handlePanelDragOver}
+                  onDrop={e => handlePanelDrop(e, l.id)}
+                  onDragEnd={() => setPanelDraggingLayerId(null)}
+                  onClick={() => setActiveLayerId(l.id)}
+                  className={`p-2 px-2.5 rounded-lg border cursor-grab active:cursor-grabbing transition-all flex items-center justify-between group ${isSelected ? "border-[#9c665c] bg-[#9c665c]/5 text-[#9c665c]" : "border-[color:var(--line)] hover:bg-[color:var(--background)]"} ${isPanelDragging ? "opacity-30 border-dashed" : ""}`}
+                >
+                  <div className="flex items-center gap-2 truncate pointer-events-none">
+                    <div className="w-5 h-5 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded shrink-0">
+                      {l.image ? <img src={l.image} alt={l.name} className="w-4 h-4 object-contain" /> : <span className="text-[10px]">{l.symbol || "✍️"}</span>}
+                    </div>
+                    <span className={`text-[10px] truncate max-w-[70px] ${isSelected ? "font-bold" : "font-medium"}`}>{l.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] font-bold">+{l.price}</span>
+                    <button onClick={e => { e.stopPropagation(); deleteLayer(l.id); }} className="text-[10px] text-[color:var(--muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5">✕</button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {layers.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-6 opacity-50">
+                <span className="text-xl mb-1">🍃</span>
+                <p className="text-[10px] text-center text-[color:var(--muted)]">尚無花材</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 花語共鳴 */}
+        {layers.some(l => l.meaning) && (
+          <div className="rounded-xl border border-[#9c665c]/25 bg-[#9c665c]/5 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#9c665c]/15 flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 text-[#9c665c]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+              <span className="text-[11px] font-bold tracking-widest text-[#9c665c] uppercase">花語共鳴</span>
+            </div>
+            <div className="p-3 flex flex-col gap-2.5 max-h-[220px] overflow-y-auto">
+              {layers.filter(l => l.meaning).map(l => (
+                <div key={`meaning-${l.id}`} className="flex flex-col border-b border-[#9c665c]/10 pb-2.5 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-5 h-5 flex items-center justify-center bg-[#9c665c]/10 rounded-full shrink-0">
+                      {l.image ? <img src={l.image} alt={l.name} className="w-3.5 h-3.5 object-contain" /> : <span className="text-[9px]">{l.symbol}</span>}
+                    </div>
+                    <span className="text-[11px] font-bold text-[color:var(--foreground)]">{l.name}</span>
+                  </div>
+                  <p className="text-[10px] text-[color:var(--muted)] leading-relaxed pl-7">{l.meaning}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 結帳區 */}
+        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm p-4 flex flex-col gap-3">
+          <div className="flex items-end justify-between">
+            <span className="text-xs text-[color:var(--muted)]">設計總額</span>
+            <div className="text-right">
+              <span className="text-[10px] text-[#9c665c] font-bold block">TWD</span>
+              <span className="text-2xl font-extrabold leading-none">${totalPrice}</span>
+            </div>
+          </div>
+          <Button onClick={handleSaveAndCheckout} className="w-full py-3 text-sm font-bold bg-gradient-to-r from-[#9c665c] to-[#b5846a] hover:opacity-90 transition-opacity border-none text-white shadow-md">
+            確認設計，送出委託
+          </Button>
+        </div>
+      </div>
+
     </div>
   );
 }
+

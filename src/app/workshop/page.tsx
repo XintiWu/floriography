@@ -40,7 +40,7 @@ export default function WorkshopPage() {
         </Container>
       </div>
 
-      {/* 核心編輯器容器 (全幅展示，帶有適當的間距) */}
+      {/* 核心編輯器 */}
       <Container className="py-8 sm:py-10">
         <WorkshopStudio />
       </Container>
