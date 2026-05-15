@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const result = await query(`
       SELECT * FROM assets 
-      ORDER BY category_id, name ASC
+      ORDER BY category, name ASC
     `);
     return NextResponse.json(result.rows);
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import type { Card, Flower } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sampleCards, sampleFlowers } from "@/lib/sampleData";
+import { query } from "@/lib/db";
 
 type CardRow = {
   id: string;
@@ -58,30 +59,50 @@ function mapFlower(row: FlowerRow): Flower {
 }
 
 export async function getCards(): Promise<Card[]> {
-  const supabase = createSupabaseServerClient();
-  if (!supabase) return sampleCards;
-
-  const { data, error } = await supabase
-    .from("cards")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (error) return sampleCards;
-  return ((data ?? []) as CardRow[]).map(mapCard);
+  try {
+    const result = await query(`
+      SELECT * FROM designs 
+      ORDER BY created_at DESC
+    `);
+    
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      title: row.name,
+      priceTwd: row.total_price,
+      status: "available", // 預設為可售
+      images: [row.preview_url].filter(Boolean),
+      blurb: row.description,
+      tags: { occasions: [], colors: [], flowers: [], moods: [] }
+    }));
+  } catch (err) {
+    console.error("Failed to fetch cards from OCI:", err);
+    return sampleCards;
+  }
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
-  const supabase = createSupabaseServerClient();
-  if (!supabase) return sampleCards.find((c) => c.id === id) ?? null;
-
-  const { data, error } = await supabase
-    .from("cards")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) return null;
-  return data ? mapCard(data as CardRow) : null;
+  try {
+    const result = await query(`
+      SELECT * FROM designs 
+      WHERE id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) return null;
+    
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      title: row.name,
+      priceTwd: row.total_price,
+      status: "available",
+      images: [row.preview_url].filter(Boolean),
+      blurb: row.description,
+      tags: { occasions: [], colors: [], flowers: [], moods: [] }
+    };
+  } catch (err) {
+    console.error("Failed to fetch card by ID from OCI:", err);
+    return sampleCards.find(c => c.id === id) || null;
+  }
 }
 
 export async function getFlowers(): Promise<Flower[]> {

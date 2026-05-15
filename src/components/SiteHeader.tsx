@@ -7,7 +7,7 @@ import { Container } from "@/components/Container";
 import { useState, useEffect } from "react";
 import { authService } from "@/services/authService";
 import { AuthOverlay } from "@/components/AuthOverlay";
-import { User as UserIcon, LogOut, ChevronDown, LogIn } from "lucide-react";
+import { User as UserIcon, LogOut, ChevronDown, LogIn, Layout } from "lucide-react";
 
 const nav = [
   { href: "/cards", label: "作品" },
@@ -98,6 +98,13 @@ export function SiteHeader() {
 
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)] p-1.5 shadow-xl">
+                  <Link
+                    href="/admin"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[color:var(--muted)] hover:bg-black/5"
+                  >
+                    <Layout size={14} />
+                    管理後台
+                  </Link>
                   <button 
                     onClick={handleLogout}
                     className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"

@@ -3,8 +3,9 @@
 # 設定變數
 SERVER_IP="170.9.54.46"
 SERVER_USER="opc"
-KEY_PATH="/Users/jakehu/keys/floriography.key"
-REMOTE_DIR="/home/opc/frontend"
+# 安全提示：請確保 keys/ 資料夾已加入 .gitignore，勿上傳至公開倉庫
+KEY_PATH="./keys/floriography.key"
+REMOTE_DIR="/home/opc/floriography"
 
 echo "🚀 開始部署到 OCI 伺服器 ($SERVER_IP)..."
 
@@ -14,6 +15,7 @@ rsync -avz --exclude 'node_modules' \
       --exclude '.next' \
       --exclude '.git' \
       --exclude '.env.local' \
+      --exclude 'keys' \
       -e "ssh -i $KEY_PATH" \
       ./ $SERVER_USER@$SERVER_IP:$REMOTE_DIR
 

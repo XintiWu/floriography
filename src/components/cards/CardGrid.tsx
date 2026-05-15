@@ -40,7 +40,7 @@ export function CardGrid({ cards }: { cards: Card[] }) {
                 alt={card.title}
                 fill
                 sizes="(max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
               />
             </div>
             <div className="grid gap-3 p-5">

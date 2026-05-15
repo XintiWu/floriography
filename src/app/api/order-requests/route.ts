@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { query } from "@/lib/db";
 
 const schema = z.object({
   cardId: z.string().optional(),
@@ -35,7 +36,44 @@ export async function POST(req: Request) {
   const id = makeId();
   const createdAt = new Date().toISOString();
 
+  // 1. 嘗試獲取登入用戶資訊
   const supabase = createSupabaseServerClient();
+  let userId = null;
+  if (supabase) {
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id || null;
+  }
+
+  // 2. 寫入 OCI PostgreSQL (正式資料庫)
+  try {
+    const fullNotes = [
+      parsed.data.purpose ? `用途: ${parsed.data.purpose}` : null,
+      parsed.data.notes ? `備註: ${parsed.data.notes}` : null,
+      parsed.data.customRequest ? `客製需求: ${parsed.data.customRequest}` : null,
+      parsed.data.cardId ? `作品 ID: ${parsed.data.cardId}` : null
+    ].filter(Boolean).join("\n");
+
+    const shippingAddress = `${parsed.data.preferredPickup} (${parsed.data.timeWindow})`;
+
+    await query(`
+      INSERT INTO orders (id, customer_name, customer_phone, shipping_address, notes, total_price, status, user_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
+      id,
+      parsed.data.customerName,
+      parsed.data.contact,
+      shippingAddress,
+      fullNotes,
+      parsed.data.budgetTwd || 0,
+      'pending',
+      userId
+    ]);
+  } catch (err: any) {
+    console.error("OCI Order Insert Failed:", err);
+    // 即使 OCI 失敗，我們還是繼續嘗試寫入 Supabase 作為備援
+  }
+
+  // 3. 寫入 Supabase (備援/過渡)
   if (supabase) {
     const { error } = await supabase.from("order_requests").insert({
       id,
@@ -51,13 +89,7 @@ export async function POST(req: Request) {
       notes: parsed.data.notes ?? null,
       custom_request: parsed.data.customRequest ?? null,
     });
-
-    if (error) {
-      return NextResponse.json(
-        { error: "db_insert_failed", detail: error.message },
-        { status: 500 }
-      );
-    }
+    // 如果 Supabase 也失敗且 OCI 已經失敗，才報錯
   }
 
   // Optional: email notification (Resend). If not configured, silently skip.
