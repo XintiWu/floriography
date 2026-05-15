@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { Container } from "@/components/Container";
+import { useState, useEffect } from "react";
+import { authService } from "@/services/authService";
+import { AuthOverlay } from "@/components/AuthOverlay";
+import { User as UserIcon, LogOut, ChevronDown, LogIn } from "lucide-react";
 
 const nav = [
   { href: "/cards", label: "作品" },
@@ -15,8 +19,29 @@ const nav = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+  useEffect(() => {
+    // 獲取初始用戶
+    authService.getUser().then(setUser);
+
+    // 監聽狀態變化
+    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    await authService.signOut();
+    setIsUserMenuOpen(false);
+  };
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-[color:var(--line)] bg-[color:var(--background)]/80 backdrop-blur">
       <Container className="flex h-16 items-center justify-between gap-4">
         <Link href="/" className="group flex items-baseline gap-2">
@@ -54,14 +79,60 @@ export function SiteHeader() {
           })}
         </nav>
 
-        <Link
-          href="/reserve"
-          className="rounded-full bg-[color:var(--ink)] px-4 py-2 text-[13px] font-semibold tracking-wide text-[color:var(--paper)] hover:bg-black/85"
-        >
-          預訂/詢價
-        </Link>
+
+        <div className="flex items-center gap-4">
+          {user ? (
+            <div className="relative">
+              <button 
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 rounded-full border border-[color:var(--line)] px-3 py-1.5 transition-colors hover:bg-black/5"
+              >
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[color:var(--line)]">
+                  <UserIcon size={14} />
+                </div>
+                <span className="text-[13px] font-semibold">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
+                <ChevronDown size={14} className={cn("transition-transform", isUserMenuOpen && "rotate-180")} />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)] p-1.5 shadow-xl">
+                  <button 
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20"
+                  >
+                    <LogOut size={14} />
+                    登出
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="flex items-center gap-2 rounded-full border border-[color:var(--line)] px-4 py-2 text-[13px] font-semibold tracking-wide transition-colors hover:bg-black/5"
+            >
+              <LogIn size={14} />
+              登入
+            </button>
+          )}
+
+          <Link
+            href="/reserve"
+            className="rounded-full bg-[color:var(--ink)] px-4 py-2 text-[13px] font-semibold tracking-wide text-[color:var(--paper)] hover:bg-black/85"
+          >
+            預訂/詢價
+          </Link>
+        </div>
       </Container>
     </header>
+
+    <AuthOverlay 
+      isOpen={isAuthOpen} 
+      onClose={() => setIsAuthOpen(false)} 
+    />
+  </>
   );
 }
 
