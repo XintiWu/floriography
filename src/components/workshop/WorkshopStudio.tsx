@@ -775,32 +775,35 @@ export function WorkshopStudio() {
 
             {/* 2. 精確控制列 (緊接在卡片正下方) */}
             <div className={`mt-3 w-full bg-[color:var(--card)] border border-[color:var(--line)] rounded-xl shadow-md px-4 py-3 transition-all duration-300 ${activeLayer ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}>
-              {activeLayer && (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-[#9c665c] truncate flex-1 tracking-wide">{activeLayer.name}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => adjustScale(-0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">-</button>
-                      <span className="text-sm font-mono w-11 text-center">{activeLayer.scale.toFixed(1)}x</span>
-                      <button onClick={() => adjustScale(0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">+</button>
+              {(() => {
+                const displayLayer = activeLayer || layers[0] || { name: "Placeholder", scale: 1, rotation: 0 };
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-[#9c665c] truncate flex-1 tracking-wide">{displayLayer.name}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button onClick={() => adjustScale(-0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">-</button>
+                        <span className="text-sm font-mono w-11 text-center">{Number(displayLayer.scale).toFixed(1)}x</span>
+                        <button onClick={() => adjustScale(0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">+</button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <button onClick={() => adjustRotation(-15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↺</button>
+                        <span className="text-sm font-mono w-11 text-center">{displayLayer.rotation||0}°</span>
+                        <button onClick={() => adjustRotation(15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↻</button>
+                      </div>
+                      <div className="w-px h-6 bg-[color:var(--line)] shrink-0" />
+                      <div className="grid grid-cols-3 gap-1 w-[64px] shrink-0">
+                        <div/><button onClick={() => nudgePos("up")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▲</button><div/>
+                        <button onClick={() => nudgePos("left")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">◀</button>
+                        <button onClick={() => nudgePos("down")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▼</button>
+                        <button onClick={() => nudgePos("right")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▶</button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 flex-1">
-                      <button onClick={() => adjustRotation(-15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↺</button>
-                      <span className="text-sm font-mono w-11 text-center">{activeLayer.rotation||0}°</span>
-                      <button onClick={() => adjustRotation(15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↻</button>
-                    </div>
-                    <div className="w-px h-6 bg-[color:var(--line)] shrink-0" />
-                    <div className="grid grid-cols-3 gap-1 w-[64px] shrink-0">
-                      <div/><button onClick={() => nudgePos("up")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▲</button><div/>
-                      <button onClick={() => nudgePos("left")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">◀</button>
-                      <button onClick={() => nudgePos("down")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▼</button>
-                      <button onClick={() => nudgePos("right")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▶</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
