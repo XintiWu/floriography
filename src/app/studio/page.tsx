@@ -8,7 +8,7 @@ const StudioApp = dynamic(() => import('../../App'), { ssr: false });
 
 export default function StudioPage() {
   return (
-    <main className="studio-page-container">
+    <main className="studio-root">
       <StudioApp />
     </main>
   );

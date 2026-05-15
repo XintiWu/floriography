@@ -3,8 +3,10 @@ import { useEditorState } from '../store/useEditorState';
 import type { Asset, CanvasItem } from '../types';
 import Moveable from 'react-moveable';
 
+import { motion } from 'framer-motion';
+
 export const CanvasArea: React.FC = () => {
-  const { cardBackground, canvasItems, addItem, selectedItemId, setSelectedItem } = useEditorState();
+  const { cardBackground, canvasItems, addItem, selectedItemId, setSelectedItem, isCheckoutOpen } = useEditorState();
   const containerRef = useRef<HTMLDivElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
@@ -54,13 +56,26 @@ export const CanvasArea: React.FC = () => {
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div 
+      <motion.div 
         id="canvas-container" // For exporting
         ref={dropZoneRef}
+        animate={{
+          scale: isCheckoutOpen ? 1.25 : 1,
+          boxShadow: isCheckoutOpen ? '0 30px 60px rgba(92, 64, 51, 0.15)' : 'var(--shadow-lg)',
+        }}
+        transition={{ 
+          type: 'spring', 
+          damping: 30, 
+          stiffness: 300,
+          mass: 0.8,
+        }}
         style={{
           ...styles.dropZone,
           backgroundImage: cardBackground ? `url(${cardBackground.url})` : 'none',
           backgroundColor: cardBackground ? 'transparent' : 'var(--color-oat-100)',
+          cursor: isCheckoutOpen ? 'default' : 'crosshair',
+          willChange: 'transform',
+          transform: 'translateZ(0)',
         }}
       >
         {!cardBackground && (
@@ -76,17 +91,20 @@ export const CanvasArea: React.FC = () => {
             <CanvasItemComponent 
               key={item.id} 
               item={item} 
-              isSelected={selectedItemId === item.id} 
+              isSelected={selectedItemId === item.id && !isCheckoutOpen} 
             />
           ))}
-      </div>
+      </motion.div>
     </div>
   );
 };
 
+
 const CanvasItemComponent: React.FC<{ item: CanvasItem, isSelected: boolean }> = ({ item, isSelected }) => {
   const targetRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const { updateItem, setSelectedItem } = useEditorState();
+  const [isEditing, setIsEditing] = useState(false);
 
   const [frame] = useState({
     translate: [item.x, item.y],
@@ -99,12 +117,26 @@ const CanvasItemComponent: React.FC<{ item: CanvasItem, isSelected: boolean }> =
     if (targetRef.current) {
       targetRef.current.style.transform = `translate(${frame.translate[0]}px, ${frame.translate[1]}px) rotate(${frame.rotate}deg) scale(${frame.scale[0]}, ${frame.scale[1]})`;
     }
-  }, []);
+  }, [isEditing]); // Re-apply transform after editing state changes
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedItem(item.id);
   };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (item.asset.type === 'text' && !item.locked) {
+      e.stopPropagation();
+      setIsEditing(true);
+    }
+  };
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
 
   return (
     <>
@@ -115,18 +147,70 @@ const CanvasItemComponent: React.FC<{ item: CanvasItem, isSelected: boolean }> =
           zIndex: item.zIndex,
           backgroundColor: isSelected ? 'rgba(139, 90, 43, 0.05)' : 'transparent',
           border: isSelected ? '1px dashed rgba(139, 90, 43, 0.1)' : 'none',
+          // Override dimensions for text to fit content
+          width: item.asset.type === 'text' ? 'auto' : styles.canvasItem.width,
+          height: item.asset.type === 'text' ? 'auto' : styles.canvasItem.height,
+          padding: item.asset.type === 'text' ? '4px 8px' : 0,
+          pointerEvents: isEditing ? 'auto' : 'auto', // Ensure clicks work
         }}
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
       >
-        <img 
-          src={item.asset.url} 
-          alt={item.asset.name} 
-          style={styles.canvasItemImage} 
-          draggable={false}
-        />
+        {item.asset.type === 'text' ? (
+          isEditing ? (
+            <textarea
+              ref={inputRef}
+              value={item.text}
+              onChange={(e) => updateItem(item.id, { text: e.target.value })}
+              onBlur={() => setIsEditing(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  setIsEditing(false);
+                }
+              }}
+              style={{
+                fontSize: `${item.fontSize}px`,
+                color: item.color,
+                fontWeight: item.fontWeight || 400,
+                fontStyle: item.fontStyle || 'normal',
+                fontFamily: item.fontFamily || 'inherit',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                padding: 0,
+                margin: 0,
+                resize: 'none',
+                width: 'auto',
+                minWidth: '50px',
+                textAlign: 'center',
+                lineHeight: 1.2,
+              }}
+            />
+          ) : (
+            <div style={{
+              fontSize: `${item.fontSize}px`,
+              color: item.color,
+              fontWeight: item.fontWeight || 400,
+              fontStyle: item.fontStyle || 'normal',
+              fontFamily: item.fontFamily || 'inherit',
+              whiteSpace: 'nowrap',
+              lineHeight: 1.2,
+            }}>
+              {item.text}
+            </div>
+          )
+        ) : (
+          <img 
+            src={item.asset.url} 
+            alt={item.asset.name} 
+            style={styles.canvasItemImage} 
+            draggable={false}
+          />
+        )}
       </div>
 
-      {isSelected && !item.locked && targetRef.current && (
+      {isSelected && !item.locked && !isEditing && targetRef.current && (
         <Moveable
           target={targetRef}
           container={targetRef.current.parentElement}

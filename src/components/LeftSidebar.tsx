@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { fetchAssets } from '../services/assetService';
 import type { Asset, AssetType } from '../types';
 import { useEditorState } from '../store/useEditorState';
-import { Image as ImageIcon, Flower2 } from 'lucide-react';
+import { Image as ImageIcon, Flower2, Type } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -85,6 +85,34 @@ export const LeftSidebar: React.FC = () => {
     setCardBackground(asset);
   };
 
+  const handleAddText = () => {
+    const newText: Asset = {
+      id: `text-${Date.now()}`,
+      name: '新文字',
+      type: 'text',
+      url: '',
+      price: 0,
+    };
+
+    const newItem: CanvasItem = {
+      id: `item-${Date.now()}`,
+      assetId: newText.id,
+      asset: newText,
+      x: 100,
+      y: 100,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      zIndex: useEditorState.getState().canvasItems.length + 1,
+      text: '請輸入文字',
+      fontSize: 24,
+      color: '#3E2723',
+    };
+
+    useEditorState.getState().addItem(newItem);
+    useEditorState.getState().setSelectedItem(newItem.id);
+  };
+
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>, asset: Asset) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setHoveredAsset(asset);
@@ -96,7 +124,7 @@ export const LeftSidebar: React.FC = () => {
   };
 
   return (
-    <div style={styles.sidebar}>
+    <div style={styles.sidebar} onClick={(e) => e.stopPropagation()}>
       <div style={styles.tabs}>
         <button 
           style={activeTab === 'flower' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
@@ -112,9 +140,65 @@ export const LeftSidebar: React.FC = () => {
           <ImageIcon size={18} />
           卡片
         </button>
+        <button 
+          style={activeTab === 'text' ? { ...styles.tab, ...styles.activeTab } : styles.tab}
+          onClick={() => setActiveTab('text')}
+        >
+          <Type size={18} />
+          文字
+        </button>
       </div>
 
-      {availableTags.length > 0 && (
+      {activeTab === 'text' && (
+        <div style={styles.textActionContainer}>
+          <button style={styles.addTextBtn} onClick={handleAddText}>
+            <Type size={20} />
+            新增文字
+          </button>
+          
+          <div style={styles.textPresets}>
+            <h4 style={styles.presetTitle}>預設樣式</h4>
+            <div style={styles.presetGrid}>
+              {[
+                { label: '標題', size: 36, weight: 700, font: "'Outfit', sans-serif" },
+                { label: '內文', size: 18, weight: 400, font: 'inherit' },
+                { label: '手寫風', size: 24, weight: 400, italic: true, font: 'cursive' },
+              ].map((preset, i) => (
+                <button 
+                  key={i}
+                  style={styles.presetBtn}
+                  onClick={() => {
+                    const id = `item-${Date.now()}`;
+                    const assetId = `text-preset-${i}`;
+                    useEditorState.getState().addItem({
+                      id,
+                      assetId,
+                      asset: { id: assetId, name: preset.label, type: 'text', url: '', price: 0 },
+                      x: 150,
+                      y: 150 + (i * 40),
+                      rotation: 0,
+                      scaleX: 1,
+                      scaleY: 1,
+                      zIndex: useEditorState.getState().canvasItems.length + 1,
+                      text: preset.label,
+                      fontSize: preset.size,
+                      color: '#5C4033',
+                      fontFamily: preset.font,
+                      fontWeight: preset.weight,
+                      fontStyle: preset.italic ? 'italic' : 'normal',
+                    });
+                    useEditorState.getState().setSelectedItem(id);
+                  }}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab !== 'text' && availableTags.length > 0 && (
         <div style={styles.tagContainer}>
           <button 
             style={selectedTag === null ? { ...styles.tagBtn, ...styles.activeTagBtn } : styles.tagBtn}
@@ -154,6 +238,7 @@ export const LeftSidebar: React.FC = () => {
               <div 
                 key={asset.id} 
                 style={styles.assetCard}
+                className="asset-card-hover"
                 draggable={asset.type === 'flower'}
                 onDragStart={(e) => handleDragStart(e, asset)}
                 onClick={() => asset.type === 'card' && handleCardSelect(asset)}
@@ -288,8 +373,53 @@ const styles: Record<string, React.CSSProperties> = {
   },
   activeTagBtn: {
     backgroundColor: 'var(--color-brown-500)',
-    borderColor: 'var(--color-brown-500)',
+    border: '1px solid var(--color-brown-500)',
     color: '#FFF',
+  },
+  textActionContainer: {
+    padding: '24px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  addTextBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    padding: '16px',
+    backgroundColor: 'var(--color-accent)',
+    color: '#FFF',
+    borderRadius: 'var(--radius-lg)',
+    fontSize: '16px',
+    fontWeight: 600,
+    boxShadow: 'var(--shadow-md)',
+  },
+  textPresets: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  presetTitle: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: 'var(--color-brown-300)',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+  },
+  presetGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '8px',
+  },
+  presetBtn: {
+    padding: '12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    backgroundColor: 'var(--color-oat-100)',
+    fontSize: '14px',
+    color: 'var(--color-brown-700)',
+    textAlign: 'center',
   },
   assetGrid: {
     flex: 1,
@@ -304,7 +434,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'transparent',
     borderRadius: 'var(--radius-md)',
     cursor: 'grab',
-    transition: 'transform 0.2s, box-shadow 0.2s',
+    transition: 'all 0.2s ease',
   },
   imageContainer: {
     width: '100%',
@@ -360,6 +490,11 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    background: 'rgba(252, 249, 246, 0.85)',
+    border: '1px solid rgba(139, 90, 43, 0.15)',
+    transition: 'opacity 0.2s, transform 0.2s',
   },
   popoverTitle: {
     fontSize: '16px',

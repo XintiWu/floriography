@@ -16,6 +16,8 @@ interface EditorState {
   moveItem: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
   toggleVisibility: (id: string) => void;
   toggleLock: (id: string) => void;
+  isCheckoutOpen: boolean;
+  setCheckoutOpen: (open: boolean) => void;
   
   // Computed
   getTotalPrice: () => number;
@@ -80,6 +82,9 @@ export const useEditorState = create<EditorState>((set, get) => ({
       item.id === id ? { ...item, locked: !item.locked } : item
     )
   })),
+  
+  isCheckoutOpen: false,
+  setCheckoutOpen: (open) => set({ isCheckoutOpen: open }),
 
   getTotalPrice: () => {
     const state = get();

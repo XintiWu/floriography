@@ -10,7 +10,10 @@ import {
   EyeOff, 
   Lock, 
   Unlock,
-  Trash2
+  Trash2,
+  Type,
+  Bold,
+  Italic
 } from 'lucide-react';
 
 export const RightSidebar: React.FC = () => {
@@ -21,7 +24,8 @@ export const RightSidebar: React.FC = () => {
     moveItem, 
     toggleVisibility, 
     toggleLock,
-    removeItem 
+    removeItem,
+    updateItem
   } = useEditorState();
 
   const selectedItem = canvasItems.find(item => item.id === selectedItemId);
@@ -30,7 +34,7 @@ export const RightSidebar: React.FC = () => {
   const sortedItems = [...canvasItems].sort((a, b) => b.zIndex - a.zIndex);
 
   return (
-    <div style={styles.sidebar}>
+    <div style={styles.sidebar} onClick={(e) => e.stopPropagation()}>
       <div style={styles.header}>
         <Layers size={20} />
         <h2 style={styles.title}>圖層管理</h2>
@@ -50,7 +54,11 @@ export const RightSidebar: React.FC = () => {
               onClick={() => setSelectedItem(item.id)}
             >
               <div style={styles.layerPreview}>
-                <img src={item.asset.url} alt="" style={styles.previewImg} />
+                {item.asset.type === 'text' ? (
+                  <Type size={16} color="var(--color-brown-300)" />
+                ) : (
+                  <img src={item.asset.url} alt="" style={styles.previewImg} />
+                )}
               </div>
               
               <div style={styles.layerInfo}>
@@ -97,21 +105,103 @@ export const RightSidebar: React.FC = () => {
       {selectedItem && (
         <div style={styles.selectedDetails}>
           <h3 style={styles.detailsTitle}>{selectedItem.asset.name}</h3>
-          {selectedItem.asset.scientificName && (
-            <p style={styles.detailsScientific}>{selectedItem.asset.scientificName}</p>
-          )}
           
-          <div style={styles.detailsContent}>
-            <div style={styles.detailsSection}>
-              <span style={styles.detailsLabel}>花語</span>
-              <p style={styles.detailsText}>{selectedItem.asset.meaning || '暫無花語資料'}</p>
+          {selectedItem.asset.type === 'text' ? (
+            <div style={styles.textEditContainer}>
+              <div style={styles.detailsSection}>
+                <span style={styles.detailsLabel}>文字內容</span>
+                <input 
+                  type="text" 
+                  value={selectedItem.text || ''} 
+                  onChange={(e) => updateItem(selectedItem.id, { text: e.target.value })}
+                  style={styles.textInput}
+                />
+              </div>
+
+              <div style={styles.detailsRow}>
+                <div style={styles.detailsSection}>
+                  <span style={styles.detailsLabel}>字體大小</span>
+                  <input 
+                    type="number" 
+                    value={selectedItem.fontSize || 24} 
+                    onChange={(e) => updateItem(selectedItem.id, { fontSize: parseInt(e.target.value) || 12 })}
+                    style={styles.numberInput}
+                  />
+                </div>
+                <div style={styles.detailsSection}>
+                  <span style={styles.detailsLabel}>顏色</span>
+                  <input 
+                    type="color" 
+                    value={selectedItem.color || '#3E2723'} 
+                    onChange={(e) => updateItem(selectedItem.id, { color: e.target.value })}
+                    style={styles.colorInput}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.detailsSection}>
+                <span style={styles.detailsLabel}>字體</span>
+                <select 
+                  value={selectedItem.fontFamily || 'inherit'} 
+                  onChange={(e) => updateItem(selectedItem.id, { fontFamily: e.target.value })}
+                  style={styles.selectInput}
+                >
+                  <option value="inherit">系統預設</option>
+                  <option value="'Outfit', sans-serif">Outfit (現代)</option>
+                  <option value="'Noto Serif TC', serif">思源宋體 (優雅)</option>
+                  <option value="'Cormorant Garamond', serif">Garamond (經典)</option>
+                  <option value="'Courier New', monospace">打字機體</option>
+                  <option value="cursive">手寫體</option>
+                </select>
+              </div>
+
+              <div style={styles.detailsSection}>
+                <span style={styles.detailsLabel}>樣式</span>
+                <div style={styles.styleGroup}>
+                  <button 
+                    style={{
+                      ...styles.styleBtn, 
+                      backgroundColor: selectedItem.fontWeight === 'bold' || selectedItem.fontWeight === 700 ? 'var(--color-oat-400)' : 'transparent'
+                    }}
+                    onClick={() => updateItem(selectedItem.id, { 
+                      fontWeight: (selectedItem.fontWeight === 'bold' || selectedItem.fontWeight === 700) ? 'normal' : 'bold' 
+                    })}
+                  >
+                    <Bold size={16} />
+                  </button>
+                  <button 
+                    style={{
+                      ...styles.styleBtn, 
+                      backgroundColor: selectedItem.fontStyle === 'italic' ? 'var(--color-oat-400)' : 'transparent'
+                    }}
+                    onClick={() => updateItem(selectedItem.id, { 
+                      fontStyle: selectedItem.fontStyle === 'italic' ? 'normal' : 'italic' 
+                    })}
+                  >
+                    <Italic size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
-            
-            <div style={styles.detailsSection}>
-              <span style={styles.detailsLabel}>簡介</span>
-              <p style={styles.detailsText}>{selectedItem.asset.description || '請重新從左側拖曳花材以獲取最新簡介資料。'}</p>
-            </div>
-          </div>
+          ) : (
+            <>
+              {selectedItem.asset.scientificName && (
+                <p style={styles.detailsScientific}>{selectedItem.asset.scientificName}</p>
+              )}
+              
+              <div style={styles.detailsContent}>
+                <div style={styles.detailsSection}>
+                  <span style={styles.detailsLabel}>花語</span>
+                  <p style={styles.detailsText}>{selectedItem.asset.meaning || '暫無花語資料'}</p>
+                </div>
+                
+                <div style={styles.detailsSection}>
+                  <span style={styles.detailsLabel}>簡介</span>
+                  <p style={styles.detailsText}>{selectedItem.asset.description || '請重新從左側拖曳花材以獲取最新簡介資料。'}</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -163,7 +253,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   selectedLayer: {
     backgroundColor: 'var(--color-oat-200)',
-    borderColor: 'var(--color-brown-300)',
+    border: '1px solid var(--color-brown-300)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
   },
   layerPreview: {
@@ -264,5 +354,64 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-brown-500)',
     lineHeight: '1.5',
     margin: 0,
+  },
+  textEditContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    marginTop: '12px',
+  },
+  textInput: {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    backgroundColor: '#fff',
+    fontSize: '14px',
+    color: 'var(--color-brown-700)',
+  },
+  detailsRow: {
+    display: 'flex',
+    gap: '12px',
+  },
+  numberInput: {
+    width: '100%',
+    padding: '8px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    fontSize: '14px',
+  },
+  colorInput: {
+    width: '100%',
+    height: '38px',
+    padding: '2px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    cursor: 'pointer',
+  },
+  selectInput: {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    backgroundColor: '#fff',
+    fontSize: '14px',
+    color: 'var(--color-brown-700)',
+    outline: 'none',
+  },
+  styleGroup: {
+    display: 'flex',
+    gap: '8px',
+  },
+  styleBtn: {
+    width: '40px',
+    height: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+    color: 'var(--color-brown-700)',
+    transition: 'all 0.2s',
   }
 };

@@ -28,4 +28,7 @@ export interface CanvasItem {
   text?: string;
   fontSize?: number;
   color?: string;
+  fontFamily?: string;
+  fontWeight?: string | number;
+  fontStyle?: string;
 }

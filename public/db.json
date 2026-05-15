@@ -5944,6 +5944,38 @@
         "background",
         "paper"
       ]
+    },
+    {
+      "name": "藍調水彩花卉",
+      "type": "card",
+      "url": "/images/cards/watercolor_floral_1.png",
+      "price": 50,
+      "tags": ["watercolor", "floral", "blue"],
+      "description": "優雅的藍色水彩花卉邊框，適合寧靜深遠的祝福。"
+    },
+    {
+      "name": "極簡手繪花草",
+      "type": "card",
+      "url": "/images/cards/minimalist_floral_2.png",
+      "price": 50,
+      "tags": ["minimalist", "floral", "line-art"],
+      "description": "簡約的手繪花草裝飾，點綴膠帶元素，充滿文藝氣息。"
+    },
+    {
+      "name": "復古羊皮紙",
+      "type": "card",
+      "url": "/images/cards/vintage_parchment.png",
+      "price": 45,
+      "tags": ["texture", "vintage", "parchment"],
+      "description": "經典的復古羊皮紙質感，歲月沉澱的色澤為您的心意增添份量。"
+    },
+    {
+      "name": "柔軟亞麻紋理",
+      "type": "card",
+      "url": "/images/cards/linen_texture.png",
+      "price": 40,
+      "tags": ["texture", "fabric", "linen"],
+      "description": "細緻的白色亞麻布紋理，清爽乾淨且充滿高級質感。"
     }
   ]
 }

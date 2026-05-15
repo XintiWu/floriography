@@ -9,7 +9,10 @@ export const fetchAssets = async (): Promise<Asset[]> => {
       const { data, error } = await supabase.from('assets').select('*');
       if (error) throw error;
       if (data && data.length > 0) {
-        return data as Asset[];
+        return data.map((asset, index) => ({
+          ...asset,
+          id: asset.id || asset.url || `supabase-${index}`
+        })) as Asset[];
       }
     } catch (err) {
       console.warn('Failed to fetch from Supabase, falling back to local db.json.', err);
@@ -23,7 +26,11 @@ export const fetchAssets = async (): Promise<Asset[]> => {
       throw new Error(`Failed to load db.json: ${response.statusText}`);
     }
     const data = await response.json();
-    return data.assets as Asset[];
+    const assets = (data.assets as Asset[]).map((asset, index) => ({
+      ...asset,
+      id: asset.id || asset.url || `asset-${index}`
+    }));
+    return assets;
   } catch (err) {
     console.error('Error fetching local db.json fallback:', err);
     return [];

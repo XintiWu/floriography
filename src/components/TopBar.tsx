@@ -1,10 +1,14 @@
+"use client";
+
 import React, { useState } from 'react';
 import { useEditorState } from '../store/useEditorState';
-import { Download, Info, Leaf } from 'lucide-react';
+import { Download, Info, Leaf, ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
 
 export const TopBar: React.FC = () => {
-  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground } = useEditorState();
+  const router = useRouter();
+  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen } = useEditorState();
   const [isHovering, setIsHovering] = useState(false);
   const totalPrice = getTotalPrice();
   const usedAssets = getUsedAssets();
@@ -31,10 +35,21 @@ export const TopBar: React.FC = () => {
   };
 
   return (
-    <div style={styles.topBar}>
-      <div style={styles.logoContainer}>
-        <Leaf size={24} color="var(--color-accent)" />
-        <h1 style={styles.title}>Floriography Studio</h1>
+    <div style={styles.topBar} onClick={(e) => e.stopPropagation()}>
+      <div style={styles.leftSection}>
+        <button 
+          style={styles.backBtn}
+          onClick={() => router.push('/')}
+          className="transition-all"
+        >
+          <ArrowLeft size={18} />
+          返回
+        </button>
+
+        <div style={styles.logoContainer}>
+          <Leaf size={24} color="var(--color-accent)" />
+          <h1 style={styles.title}>Floriography Studio</h1>
+        </div>
       </div>
 
       <div style={styles.actions}>
@@ -49,8 +64,7 @@ export const TopBar: React.FC = () => {
 
         <div 
           style={styles.priceContainer}
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
+          onClick={() => setIsHovering(!isHovering)}
         >
           <div style={styles.priceDisplay}>
             <span>NT$ {totalPrice}</span>
@@ -58,7 +72,7 @@ export const TopBar: React.FC = () => {
           </div>
 
           {isHovering && usedAssets.length > 0 && (
-            <div style={styles.priceDropdown} className="glass">
+            <div style={styles.priceDropdown} className="glass" onClick={(e) => e.stopPropagation()}>
               <h3 style={styles.dropdownTitle}>已使用素材</h3>
               <ul style={styles.assetList}>
                 {usedAssets.map(({ asset, count }) => (
@@ -76,6 +90,16 @@ export const TopBar: React.FC = () => {
                 <strong>總計</strong>
                 <strong>NT$ {totalPrice}</strong>
               </div>
+              
+              <button 
+                style={styles.orderBtn}
+                onClick={() => {
+                  setCheckoutOpen(true);
+                  setIsHovering(false);
+                }}
+              >
+                下單預訂
+              </button>
             </div>
           )}
         </div>
@@ -96,13 +120,30 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative',
     zIndex: 100,
   },
+  leftSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+  },
+  backBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    backgroundColor: 'var(--color-oat-300)',
+    color: 'var(--color-brown-700)',
+    borderRadius: 'var(--radius-full)',
+    fontSize: '14px',
+    fontWeight: 600,
+    boxShadow: 'var(--shadow-sm)',
+  },
   logoContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
   },
   title: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: 600,
     color: 'var(--color-brown-700)',
     letterSpacing: '0.5px',
@@ -143,10 +184,14 @@ const styles: Record<string, React.CSSProperties> = {
     right: 0,
     marginTop: '12px',
     width: '280px',
-    padding: '16px',
+    padding: '20px',
     borderRadius: 'var(--radius-xl)',
     boxShadow: 'var(--shadow-lg)',
-    zIndex: 10,
+    zIndex: 1000,
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    background: 'rgba(252, 249, 246, 0.9)',
+    border: '1px solid rgba(139, 90, 43, 0.15)',
   },
   dropdownTitle: {
     fontSize: '14px',
@@ -195,5 +240,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: '1px solid var(--color-border)',
     fontSize: '16px',
     color: 'var(--color-brown-900)',
+  },
+  orderBtn: {
+    width: '100%',
+    marginTop: '16px',
+    padding: '12px',
+    backgroundColor: 'var(--color-accent)',
+    color: '#FFF',
+    borderRadius: 'var(--radius-lg)',
+    fontSize: '14px',
+    fontWeight: 600,
+    textAlign: 'center',
+    transition: 'all 0.2s',
+    boxShadow: 'var(--shadow-md)',
   }
 };
