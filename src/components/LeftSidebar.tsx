@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { fetchAssets } from '../services/assetService';
-import type { Asset, AssetType } from '../types';
+import type { Asset, AssetType, CanvasItem } from '../types';
 import { useEditorState } from '../store/useEditorState';
 import { Image as ImageIcon, Flower2, Type } from 'lucide-react';
 
