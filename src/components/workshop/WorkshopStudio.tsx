@@ -697,8 +697,8 @@ export function WorkshopStudio() {
       </div>
 
       {/* ══ 中央：畫布區 (col-span-5) ══ */}
-      <div className="lg:col-span-5 flex flex-col items-center justify-end h-full">
-        <div className="w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-5 py-8 shadow-sm flex flex-col items-center relative min-h-[640px] mt-auto">
+      <div className="lg:col-span-5 flex flex-col h-full">
+        <div className="w-full h-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-5 py-8 shadow-sm flex flex-col items-center justify-center relative min-h-[640px]">
           {/* 背景網格 */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:20px_20px] opacity-30 rounded-xl pointer-events-none" />
 
