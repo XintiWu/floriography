@@ -1,252 +1,325 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { z } from "zod";
-import { Button } from "@/components/Button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useEffect, useState } from "react";
+import { 
+  Package, 
+  Users, 
+  ShoppingBag, 
+  Layout, 
+  RefreshCcw, 
+  AlertCircle,
+  Save,
+  CheckCircle2
+} from "lucide-react";
+import { authService } from "@/services/authService";
 
-type Row = {
-  id: string;
-  created_at: string;
-  status: string;
-  card_id: string | null;
-  customer_name: string;
-  contact: string;
-  preferred_pickup: string;
-  time_window: string;
-  budget_twd: number | null;
-  purpose: string | null;
-  notes: string | null;
-  custom_request: string | null;
-};
-
-const signInSchema = z.object({
-  email: z.string().email("Email 格式不正確"),
-  password: z.string().min(6, "密碼至少 6 碼"),
-});
+type Tab = 'inventory' | 'users' | 'orders' | 'designs';
 
 export function AdminPanel() {
-  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const [sessionEmail, setSessionEmail] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [activeTab, setActiveTab] = useState<Tab>('inventory');
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    if (!supabase) return;
+  // 1. 權限檢查：確保只有登入者可以查看
+  useEffect(() => {
+    authService.getUser().then(u => {
+      setUser(u);
+      if (u) fetchData('inventory');
+    });
+  }, []);
+
+  // 2. 抓取資料
+  const fetchData = async (tab: Tab) => {
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from("order_requests")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    if (error) setError(error.message);
-    setRows((data ?? []) as Row[]);
-    setLoading(false);
-  }, [supabase]);
+    try {
+      const endpoint = `/api/admin/${tab === 'inventory' ? 'assets' : tab}`;
+      const res = await fetch(endpoint);
+      if (!res.ok) throw new Error('無法讀取資料');
+      const json = await res.json();
+      setData(json);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const updateRow = useCallback(
-    async (id: string, patch: Partial<Pick<Row, "status" | "notes">>) => {
-      if (!supabase) return;
-      setSavingId(id);
-      setError(null);
-      const { error } = await supabase
-        .from("order_requests")
-        .update({
-          status: patch.status,
-          notes: patch.notes,
-        })
-        .eq("id", id);
-      if (error) setError(error.message);
-      await refresh();
+  // 3. 更新庫存
+  const updateStock = async (id: string, newQuantity: number) => {
+    setSavingId(id);
+    try {
+      const res = await fetch('/api/admin/assets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, stock_quantity: newQuantity }),
+      });
+      if (!res.ok) throw new Error('更新失敗');
+      
+      // 更新本地狀態
+      setData(prev => prev.map(item => item.id === id ? { ...item, stock_quantity: newQuantity } : item));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
       setSavingId(null);
-    },
-    [refresh, supabase]
-  );
+    }
+  };
 
-  useEffect(() => {
-    if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      const next = data.session?.user.email ?? null;
-      setSessionEmail(next);
-      if (next) void refresh();
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const next = session?.user.email ?? null;
-      setSessionEmail(next);
-      if (next) void refresh();
-    });
-    return () => data.subscription.unsubscribe();
-  }, [refresh, supabase]);
-
-  if (!supabase) {
+  if (!user) {
     return (
-      <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-7 text-sm leading-7 text-[color:var(--muted)]">
-        尚未設定 Supabase。請在 `.env.local` 設定
-        `NEXT_PUBLIC_SUPABASE_URL` 與 `NEXT_PUBLIC_SUPABASE_ANON_KEY`，並在
-        Supabase 建立 `order_requests` 資料表與 RLS policy。
-      </div>
-    );
-  }
-
-  if (!sessionEmail) {
-    const parsed = signInSchema.safeParse({ email, password });
-    return (
-      <div className="grid gap-4 rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-7">
-        <p className="text-sm font-semibold tracking-wide">登入</p>
-        {error ? (
-          <p className="text-sm font-semibold text-[color:var(--accent)]">
-            {error}
-          </p>
-        ) : null}
-        <input
-          className="h-11 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-        />
-        <input
-          type="password"
-          className="h-11 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-        />
-        <Button
-          type="button"
-          variant="primary"
-          disabled={!parsed.success}
-          onClick={async () => {
-            setError(null);
-            const p = signInSchema.safeParse({ email, password });
-            if (!p.success) {
-              setError(p.error.issues[0]?.message ?? "請檢查輸入");
-              return;
-            }
-            const { error } = await supabase.auth.signInWithPassword({
-              email: p.data.email,
-              password: p.data.password,
-            });
-            if (error) setError(error.message);
-          }}
-        >
-          登入
-        </Button>
-        <p className="text-xs leading-6 text-[color:var(--muted)]">
-          第一次使用請先在 Supabase 建立管理者帳號（Email/Password）。
-        </p>
+      <div className="flex h-64 items-center justify-center rounded-3xl border-2 border-dashed border-[color:var(--line)]">
+        <p className="text-[color:var(--muted)]">請先登入會員以存取管理後台</p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[color:var(--muted)]">
-          已登入：<span className="font-semibold">{sessionEmail}</span>
-        </p>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={refresh}>
-            {loading ? "讀取中…" : "重新整理"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={async () => {
-              await supabase.auth.signOut();
-            }}
-          >
-            登出
-          </Button>
-        </div>
+    <div className="flex flex-col gap-8 md:flex-row">
+      {/* 側邊導覽列 */}
+      <div className="w-full shrink-0 md:w-64">
+        <nav className="flex flex-col gap-2">
+          <TabButton 
+            active={activeTab === 'inventory'} 
+            onClick={() => { setActiveTab('inventory'); fetchData('inventory'); }}
+            icon={<Package size={18} />}
+            label="庫存管理"
+          />
+          <TabButton 
+            active={activeTab === 'orders'} 
+            onClick={() => { setActiveTab('orders'); fetchData('orders'); }}
+            icon={<ShoppingBag size={18} />}
+            label="訂單管理"
+          />
+          <TabButton 
+            active={activeTab === 'users'} 
+            onClick={() => { setActiveTab('users'); fetchData('users'); }}
+            icon={<Users size={18} />}
+            label="會員管理"
+          />
+          <TabButton 
+            active={activeTab === 'designs'} 
+            onClick={() => { setActiveTab('designs'); fetchData('designs'); }}
+            icon={<Layout size={18} />}
+            label="作品管理"
+          />
+        </nav>
       </div>
 
-      {error ? (
-        <p className="text-sm font-semibold text-[color:var(--accent)]">
-          {error}
-        </p>
-      ) : null}
+      {/* 主內容區 */}
+      <div className="flex-1 min-w-0">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-[color:var(--foreground)]">
+            {activeTab === 'inventory' && '庫存管理'}
+            {activeTab === 'orders' && '訂單管理'}
+            {activeTab === 'users' && '會員管理'}
+            {activeTab === 'designs' && '作品管理'}
+          </h2>
+          <button 
+            onClick={() => fetchData(activeTab)}
+            className="flex items-center gap-2 text-sm text-[color:var(--muted)] hover:text-[color:var(--accent)]"
+          >
+            <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} />
+            重新整理
+          </button>
+        </div>
 
-      <div className="grid gap-3">
-        {rows.length ? (
-          rows.map((r) => (
-            <div
-              key={r.id}
-              className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-6"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="grid gap-1">
-                  <p className="text-sm font-semibold tracking-wide">{r.id}</p>
-                  <p className="text-xs text-[color:var(--muted)]">
-                    {new Date(r.created_at).toLocaleString("zh-TW")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    className="h-9 rounded-full border border-[color:var(--line)] bg-[color:var(--card)] px-3 text-[12px] font-semibold tracking-wide text-[color:var(--muted)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]"
-                    value={r.status}
-                    onChange={(e) => updateRow(r.id, { status: e.target.value })}
-                    disabled={savingId === r.id}
-                  >
-                    {["new", "contacted", "scheduled", "completed", "cancelled"].map(
-                      (s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      )
-                    )}
-                  </select>
-                  {savingId === r.id ? (
-                    <span className="text-xs text-[color:var(--muted)]">
-                      儲存中…
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="mt-4 grid gap-2 text-sm text-[color:var(--muted)]">
-                <p>
-                  <span className="font-semibold text-[color:var(--foreground)]">
-                    {r.customer_name}
-                  </span>{" "}
-                  ・ {r.contact}
-                </p>
-                <p>
-                  面交：{r.preferred_pickup}（{r.time_window}）
-                </p>
-                {r.card_id ? <p>cardId：{r.card_id}</p> : null}
-                {r.budget_twd ? <p>預算：{r.budget_twd}</p> : null}
-                {r.purpose ? <p>用途：{r.purpose}</p> : null}
-                <label className="grid gap-2 pt-2">
-                  <span className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
-                    備註（後台用）
-                  </span>
-                  <textarea
-                    className="min-h-20 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 py-3 text-sm leading-7 outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]"
-                    defaultValue={r.notes ?? ""}
-                    placeholder="例：已加 LINE、約週六 15:00、改成粉色系…"
-                    onBlur={(e) => updateRow(r.id, { notes: e.target.value })}
-                    disabled={savingId === r.id}
-                  />
-                  <span className="text-xs text-[color:var(--muted)]">
-                    輸入後點一下其他地方會自動儲存（onBlur）。
-                  </span>
-                </label>
-                {r.custom_request ? <p>客製：{r.custom_request}</p> : null}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-7 text-sm leading-7 text-[color:var(--muted)]">
-            目前沒有資料（或 RLS 阻擋讀取）。你可以先去前台送出一筆預訂/詢價測試。
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl bg-red-50 p-4 text-sm text-red-600 border border-red-100">
+            <AlertCircle size={16} />
+            {error}
           </div>
         )}
+
+        <div className="overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--line)] border-t-[color:var(--accent)]"></div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                {activeTab === 'inventory' && (
+                  <>
+                    <thead>
+                      <tr className="border-b border-[color:var(--line)] bg-black/5">
+                        <th className="px-6 py-4 font-bold">名稱</th>
+                        <th className="px-6 py-4 font-bold">類型</th>
+                        <th className="px-6 py-4 font-bold">目前庫存</th>
+                        <th className="px-6 py-4 font-bold">價格</th>
+                        <th className="px-6 py-4 font-bold">狀態</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map(item => (
+                        <tr key={item.id} className="border-b border-[color:var(--line)] hover:bg-black/5 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <img src={item.url} alt="" className="h-10 w-10 rounded-lg object-contain bg-white border border-[color:var(--line)]" />
+                              <span className="font-semibold">{item.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 opacity-70">{item.type}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <input 
+                                type="number" 
+                                defaultValue={item.stock_quantity}
+                                onBlur={(e) => updateStock(item.id, parseInt(e.target.value))}
+                                className={`w-20 rounded-lg border px-3 py-1 outline-none focus:ring-2 ${
+                                  item.stock_quantity <= item.min_stock_level ? 'border-red-300 bg-red-50 text-red-700' : 'border-[color:var(--line)]'
+                                }`}
+                              />
+                              {savingId === item.id && <Save size={14} className="animate-pulse text-[color:var(--accent)]" />}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-mono">NT$ {item.price}</td>
+                          <td className="px-6 py-4">
+                            {item.stock_quantity <= item.min_stock_level ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700">
+                                低庫存
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-bold text-green-700">
+                                充足
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </>
+                )}
+
+                {activeTab === 'users' && (
+                  <>
+                    <thead>
+                      <tr className="border-b border-[color:var(--line)] bg-black/5">
+                        <th className="px-6 py-4 font-bold">會員</th>
+                        <th className="px-6 py-4 font-bold">Email</th>
+                        <th className="px-6 py-4 font-bold">註冊時間</th>
+                        <th className="px-6 py-4 font-bold">身分</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map(u => (
+                        <tr key={u.id} className="border-b border-[color:var(--line)]">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-[color:var(--line)] flex items-center justify-center overflow-hidden">
+                                {u.avatar_url ? <img src={u.avatar_url} /> : <Users size={14} />}
+                              </div>
+                              <span className="font-semibold">{u.full_name || '未命名用戶'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-mono text-xs">{u.email}</td>
+                          <td className="px-6 py-4 text-[color:var(--muted)]">
+                            {new Date(u.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {u.role}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </>
+                )}
+
+                {activeTab === 'orders' && (
+                  <>
+                    <thead>
+                      <tr className="border-b border-[color:var(--line)] bg-black/5">
+                        <th className="px-6 py-4 font-bold">訂單編號</th>
+                        <th className="px-6 py-4 font-bold">客戶</th>
+                        <th className="px-6 py-4 font-bold">金額</th>
+                        <th className="px-6 py-4 font-bold">狀態</th>
+                        <th className="px-6 py-4 font-bold">時間</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map(o => (
+                        <tr key={o.id} className="border-b border-[color:var(--line)]">
+                          <td className="px-6 py-4 font-mono text-xs">{o.id.slice(0, 8)}...</td>
+                          <td className="px-6 py-4">
+                            <div className="font-semibold">{o.customer_name}</div>
+                            <div className="text-xs text-[color:var(--muted)]">{o.customer_phone}</div>
+                          </td>
+                          <td className="px-6 py-4">NT$ {o.total_amount}</td>
+                          <td className="px-6 py-4">
+                            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+                              {o.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-[color:var(--muted)]">
+                            {new Date(o.created_at).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </>
+                )}
+
+                {activeTab === 'designs' && (
+                  <>
+                    <thead>
+                      <tr className="border-b border-[color:var(--line)] bg-black/5">
+                        <th className="px-6 py-4 font-bold">作品</th>
+                        <th className="px-6 py-4 font-bold">名稱</th>
+                        <th className="px-6 py-4 font-bold">建議售價</th>
+                        <th className="px-6 py-4 font-bold">更新時間</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map(d => (
+                        <tr key={d.id} className="border-b border-[color:var(--line)]">
+                          <td className="px-6 py-4">
+                            <img src={d.preview_url || '/placeholder-design.png'} className="h-12 w-20 rounded-lg object-cover bg-oat-200" />
+                          </td>
+                          <td className="px-6 py-4 font-semibold">{d.name}</td>
+                          <td className="px-6 py-4">NT$ {d.total_price}</td>
+                          <td className="px-6 py-4 text-xs text-[color:var(--muted)]">
+                            {new Date(d.updated_at).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </>
+                )}
+
+                {data.length === 0 && !loading && (
+                  <tbody>
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-[color:var(--muted)]">
+                        尚無資料
+                      </td>
+                    </tr>
+                  </tbody>
+                )}
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
+function TabButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
+        active 
+          ? 'bg-[color:var(--ink)] text-[color:var(--paper)] shadow-md' 
+          : 'text-[color:var(--muted)] hover:bg-black/5 hover:text-[color:var(--foreground)]'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
