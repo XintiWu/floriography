@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Flower, Card } from "@/lib/types";
 
 export function FloriographyExplorer({
@@ -13,6 +14,7 @@ export function FloriographyExplorer({
   cards: Card[];
 }) {
   const router = useRouter();
+  const [searchMode, setSearchMode] = useState<"flower" | "meaning">("flower");
   const [selectedTag, setSelectedTag] = useState<string>("全部");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeFlowerId, setActiveFlowerId] = useState<string>(
@@ -39,6 +41,7 @@ export function FloriographyExplorer({
   const filteredFlowers = useMemo(() => {
     return flowers.filter((f) => {
       const matchTag =
+        searchMode === "flower" ||
         selectedTag === "全部" ||
         f.meanings.includes(selectedTag) ||
         f.relatedTags?.includes(selectedTag);
@@ -51,7 +54,7 @@ export function FloriographyExplorer({
 
       return matchTag && matchQuery;
     });
-  }, [flowers, selectedTag, searchQuery]);
+  }, [flowers, selectedTag, searchQuery, searchMode]);
 
   // 取得當前選中的花卉
   const activeFlower = useMemo(() => {
@@ -95,50 +98,165 @@ export function FloriographyExplorer({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* 頂部搜尋與過濾列 (對齊 NFT 範例的頂部 Tab 列) */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[color:var(--line)] pb-6">
-        {/* 搜尋框 */}
-        <div className="relative w-full md:w-80">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-[color:var(--muted)]">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-          </span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜尋花名、花語或故事寓意..."
-            className="h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--card)]/60 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all backdrop-blur"
-          />
-          {searchQuery && (
+      {/* 頂部搜尋與過濾列 */}
+      <div className="flex flex-col gap-6 border-b border-[color:var(--line)] pb-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* 搜尋框 */}
+          <div className="relative w-full md:w-80">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-[color:var(--muted)]">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜尋花名、花語或故事寓意..."
+              className="h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--card)]/60 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all backdrop-blur"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              >
+                清除
+              </button>
+            )}
+          </div>
+
+          {/* 模式切換開關 (Segmented Control) */}
+          <div className="flex p-1 bg-[color:var(--card)]/60 border border-[color:var(--line)] rounded-full backdrop-blur self-start md:self-auto">
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              onClick={() => setSearchMode("flower")}
+              className={`flex-1 md:flex-none px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "flower"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
             >
-              清除
+              🌸 依花種尋找
             </button>
-          )}
+            <button
+              onClick={() => setSearchMode("meaning")}
+              className={`flex-1 md:flex-none px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "meaning"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              ✨ 依意境尋找
+            </button>
+          </div>
         </div>
 
-        {/* 分類標籤列 (Pills) */}
-        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-2 md:pb-0">
-          {popularTags.map((tag) => {
-            const isActive = selectedTag === tag;
-            return (
-              <button
-                key={tag}
-                onClick={() => handleTagChange(tag)}
-                className={`h-10 px-4 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 whitespace-nowrap ${
-                  isActive
-                    ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm shadow-black/10"
-                    : "bg-[color:var(--card)]/40 text-[color:var(--muted)] border border-[color:var(--line)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
-                }`}
+        {/* 依據模式顯示對應的選項列 */}
+        <div className="w-full overflow-hidden min-h-[80px]">
+          <AnimatePresence mode="wait">
+            {searchMode === "flower" ? (
+              <motion.div
+                key="flower-strip"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-start gap-4 overflow-x-auto pb-2 scrollbar-hide w-full"
               >
-                {tag}
-              </button>
-            );
-          })}
+                {flowers.map((f) => {
+                  const isActive = activeFlowerId === f.id;
+                  
+                  const getFlowerImage = (name: string) => {
+                    if (name.includes("繡球花")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
+                    if (name.includes("香水合歡")) return "/FlowerDB_nobg/images/IMG_9631_processed.png";
+                    if (name.includes("星辰花")) return "/FlowerDB_nobg/images/IMG_20260501_135711228_processed.png";
+                    if (name.includes("卡斯比亞")) return "/FlowerDB_nobg/images/IMG_20260501_135615974_processed.png";
+                    if (name.includes("月季")) return "/FlowerDB_nobg/images/IMG_9684_processed.png";
+                    if (name.includes("玫瑰")) return "/FlowerDB_nobg/images/IMG_9713_processed.png";
+                    if (name.includes("九重葛")) return "/FlowerDB_nobg/images/IMG_9708_processed.png";
+                    if (name.includes("仙丹花")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                    if (name.includes("台灣欒樹")) return "/FlowerDB_nobg/images/IMG_9714_processed.png";
+                    if (name.includes("細葉雪茄花")) return "/FlowerDB_nobg/images/IMG_9702_processed.png";
+                    if (name.includes("落羽杉")) return "/FlowerDB_nobg/images/IMG_9711_processed.png";
+                    if (name.includes("鐵刀木")) return "/FlowerDB_nobg/images/IMG_9709_processed.png";
+                    if (name.includes("兔仔菜")) return "/FlowerDB_nobg/images/IMG_9681_processed.png";
+                    if (name.includes("大花咸豐草")) return "/FlowerDB_nobg/images/IMG_20260501_134509973_processed.png";
+                    if (name.includes("櫻花")) return "/FlowerDB_nobg/images/IMG_9606_processed.png";
+                    if (name.includes("馬蘭")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
+                    if (name.includes("夏堇")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
+                    if (name.includes("金魚草")) return "/FlowerDB_nobg/images/IMG_9647_processed.png";
+                    if (name.includes("野毛蕨")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                    if (name.includes("風鈴花")) return "/FlowerDB_nobg/images/IMG_9636_processed.png";
+                    if (name.includes("針葉櫻桃")) return "/FlowerDB_nobg/images/IMG_8721_processed.png";
+                    if (name.includes("黃蝴蝶")) return "/FlowerDB_nobg/images/IMG_9683_processed.png";
+                    if (name.includes("金英樹")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
+                    if (name.includes("南美朱槿")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
+                    if (name.includes("美國肖楠")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
+                    if (name.includes("構樹")) return "/FlowerDB_nobg/images/IMG_9625_processed.png";
+                    if (name.includes("垂枝茉莉")) return "/FlowerDB_nobg/images/IMG_8737_processed.png";
+                    if (name.includes("泡盛草")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                    if (name.includes("天使花")) return "/FlowerDB_nobg/images/IMG_9626_processed.png";
+                    if (name.includes("立鶴花")) return "/FlowerDB_nobg/images/IMG_8877_processed.png";
+                    if (name.includes("新幾內亞鳳仙花")) return "/FlowerDB_nobg/images/IMG_20260501_124640378_processed.png";
+                    if (name.includes("蒜香藤")) return "/FlowerDB_nobg/images/IMG_9689_processed.png";
+                    return "/FlowerDB_nobg/images/IMG_8705_processed.png";
+                  };
+
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setActiveFlowerId(f.id)}
+                      className={`flex flex-col items-center gap-2 flex-shrink-0 group transition-all duration-300 ${
+                        isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <div
+                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
+                          isActive
+                            ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
+                            : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
+                        }`}
+                      >
+                        <img 
+                          src={getFlowerImage(f.name)} 
+                          alt={f.name} 
+                          className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500" 
+                        />
+                      </div>
+                      <span className={`text-[11px] font-semibold tracking-widest ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]"}`}>
+                        {f.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="meaning-pills"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-wrap items-center gap-2 pb-2"
+              >
+                {popularTags.map((tag) => {
+                  const isActive = selectedTag === tag;
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagChange(tag)}
+                      className={`h-9 px-4 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 whitespace-nowrap ${
+                        isActive
+                          ? "bg-[color:var(--accent)]/10 text-[color:var(--accent)] border border-[color:var(--accent)]/30 shadow-sm"
+                          : "bg-[color:var(--card)]/40 text-[color:var(--muted)] border border-[color:var(--line)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -173,14 +291,25 @@ export function FloriographyExplorer({
                 <p className="text-[10px] font-semibold text-[color:var(--muted)] tracking-widest uppercase">
                   寓意指標
                 </p>
-                <p className="mt-1 text-2xl font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
-                  {activeFlower?.name ?? "花藝"}
-                </p>
-                {activeFlower?.meanings?.[0] && (
-                  <span className="mt-2 rounded-full bg-[color:var(--accent-2)] px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--paper)] tracking-widest">
-                    #{activeFlower.meanings[0]}
-                  </span>
-                )}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeFlower?.id}
+                    initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col items-center"
+                  >
+                    <p className="mt-1 text-2xl font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
+                      {activeFlower?.name ?? "花藝"}
+                    </p>
+                    {activeFlower?.meanings?.[0] && (
+                      <span className="mt-2 rounded-full bg-[color:var(--accent-2)] px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--paper)] tracking-widest">
+                        #{activeFlower.meanings[0]}
+                      </span>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               {/* 浮動的裝飾小標記 (模仿 NFT 圖面左上/右下的浮動小指標) */}
@@ -196,31 +325,42 @@ export function FloriographyExplorer({
 
             {/* 花語與適合的花解說區 */}
             <div className="relative z-10 flex flex-col gap-4 border-t border-[color:var(--line)]/60 pt-6">
-              <div>
-                <span className="text-xs font-semibold text-[color:var(--muted)] tracking-wider block mb-2">
-                  核心花語意涵
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(activeFlower?.meanings ?? ["祝福"]).map((m, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center rounded-lg bg-[color:var(--foreground)]/[0.04] dark:bg-[color:var(--foreground)]/[0.08] px-3 py-1.5 text-xs font-medium tracking-wide text-[color:var(--foreground)]"
-                    >
-                      ✨ {m}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`desc-${activeFlower?.id}`}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-4"
+                >
+                  <div>
+                    <span className="text-xs font-semibold text-[color:var(--muted)] tracking-wider block mb-2">
+                      核心花語意涵
                     </span>
-                  ))}
-                </div>
-              </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(activeFlower?.meanings ?? ["祝福"]).map((m, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center rounded-lg bg-[color:var(--foreground)]/[0.04] dark:bg-[color:var(--foreground)]/[0.08] px-3 py-1.5 text-xs font-medium tracking-wide text-[color:var(--foreground)]"
+                        >
+                          ✨ {m}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <span className="text-xs font-semibold text-[color:var(--muted)] tracking-wider block mb-1">
-                  適合的花與典故故事
-                </span>
-                <p className="text-sm leading-relaxed text-[color:var(--muted)] line-clamp-6">
-                  {activeFlower?.story ??
-                    `${activeFlower?.name} 帶有典雅純淨的姿態，花語訴說著深邃動人的情感與真摯期盼。適合用來餽贈重要之人，傳遞無法言喻的感動。`}
-                </p>
-              </div>
+                  <div>
+                    <span className="text-xs font-semibold text-[color:var(--muted)] tracking-wider block mb-1">
+                      適合的花與典故故事
+                    </span>
+                    <p className="text-sm leading-relaxed text-[color:var(--muted)] line-clamp-6">
+                      {activeFlower?.story ??
+                        `${activeFlower?.name} 帶有典雅純淨的姿態，花語訴說著深邃動人的情感與真摯期盼。適合用來餽贈重要之人，傳遞無法言喻的感動。`}
+                    </p>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 
