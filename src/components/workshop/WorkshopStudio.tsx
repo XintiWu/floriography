@@ -593,57 +593,85 @@ export function WorkshopStudio() {
   const activeLayer = layers.find(l => l.id === activeLayerId);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch h-full">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-[#faf8f5] text-[#4a423e] font-[family-name:var(--font-body)] antialiased overflow-hidden">
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #dcd8d1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #c5c0b8; }
+      `}} />
 
-      {/* ══ 左側：素材庫面板 (col-span-4) ══ */}
-      <div className="lg:col-span-4">
-        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm overflow-hidden">
+      {/* 頂部工具列 */}
+      <div className="h-[56px] border-b border-[#e3dfd8] bg-[#fdfdfc] flex items-center justify-between px-5 shrink-0 z-20 shadow-sm">
+        <div className="flex items-center gap-4">
+          <button onClick={() => router.push('/')} className="w-9 h-9 flex items-center justify-center rounded hover:bg-[#f2efe9] text-[#8a7b72] hover:text-[#5c4d44] transition-colors" title="返回首頁">
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div className="h-5 w-px bg-[#e3dfd8]" />
+          <span className="text-sm font-[family-name:var(--font-display)] font-bold tracking-widest text-[#5c4d44] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#9c665c]" />
+            FLORIOGRAPHY <span className="text-[#a8a098] font-sans font-normal tracking-[0.2em] ml-1">STUDIO</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-xs text-[#a8a098] font-sans tracking-widest">{layers.length} 層物件</span>
+          <div className="h-5 w-px bg-[#e3dfd8]" />
+          <span className="text-sm font-sans font-bold text-[#5c4d44] mr-2">NT$ {totalPrice}</span>
+          <button onClick={handleSaveAndCheckout} className="text-sm font-bold px-6 py-2 rounded-md bg-[#9c665c] text-white hover:bg-[#86564e] transition-all flex items-center gap-2 shadow-sm">
+            <span>完成設計</span>
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* 工作區主體 */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* ══ 左側：素材庫面板 (w-[320px]) ══ */}
+        <div className="w-[320px] flex flex-col bg-[#fdfdfc] border-r border-[#e3dfd8] shrink-0 z-10 shadow-[2px_0_12px_rgba(0,0,0,0.02)]">
           {/* 模式切換 Tab */}
-          <div className="flex border-b border-[color:var(--line)]">
+          <div className="flex border-b border-[#e3dfd8] shrink-0 p-2 gap-1.5 bg-[#f7f5f0]">
             {([["flowers","花材"],["bases","底紙"],["text","文字"]] as const).map(([mode, label]) => (
               <button
                 key={mode}
                 onClick={() => setLeftMode(mode)}
-                className={`flex-1 py-3 text-sm font-bold tracking-wide transition-colors ${leftMode === mode ? "bg-[color:var(--background)] text-[#9c665c] border-b-2 border-[#9c665c]" : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}
+                className={`flex-1 py-2 text-sm font-bold tracking-widest rounded-md transition-all ${leftMode === mode ? "bg-white text-[#9c665c] shadow-sm border border-[#e3dfd8]/50" : "text-[#8a7b72] hover:text-[#5c4d44] hover:bg-[#f2efe9]/50"}`}
               >{label}</button>
             ))}
           </div>
 
           {/* 花材：手風琴分類 */}
           {leftMode === "flowers" && (
-            <div className="divide-y divide-[color:var(--line)]">
+            <div className="divide-y divide-[#e3dfd8]/50 overflow-y-auto flex-1 custom-scrollbar">
               {FLOWER_CATEGORIES.map(cat => (
                 <div key={cat.id}>
                   <button
                     onClick={() => toggleCategory(cat.id)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[color:var(--background)] transition-colors"
+                    className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-[#f2efe9]/50 transition-colors group"
                   >
-                    <span className="flex items-center gap-2 text-[12px] font-bold text-[color:var(--foreground)]">
-                      <span>{cat.emoji}</span>{cat.label}
-                      <span className="text-[10px] font-normal text-[color:var(--muted)]">({cat.items.length})</span>
+                    <span className="flex items-center gap-3 text-sm font-bold text-[#5c4d44] group-hover:text-[#4a423e] transition-colors">
+                      <span className="text-lg opacity-90">{cat.emoji}</span>{cat.label}
+                      <span className="text-xs font-sans text-[#8a7b72] bg-[#f2efe9] px-2 py-0.5 rounded-full">{cat.items.length}</span>
                     </span>
-                    <svg className={`w-3.5 h-3.5 text-[color:var(--muted)] transition-transform duration-200 ${expandedCategories.has(cat.id) ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7"/></svg>
+                    <svg className={`w-4 h-4 text-[#a8a098] transition-transform duration-200 ${expandedCategories.has(cat.id) ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7"/></svg>
                   </button>
 
                   {expandedCategories.has(cat.id) && (
-                    <div className="grid grid-cols-3 gap-2 px-3 pb-4 pt-1">
+                    <div className="grid grid-cols-2 gap-3 px-4 pb-5 pt-1">
                       {cat.items.map(item => (
                         <div
                           key={item.id}
                           draggable
                           onDragStart={e => handleDragStartNewItem(e, { ...item, type: cat.id === "tree" ? "accent" : "flower" })}
                           onClick={() => addLayer({ ...item, type: cat.id === "tree" ? "accent" : "flower" })}
-                          className="group relative aspect-square rounded-lg border border-[color:var(--line)] bg-[color:var(--background)] hover:border-[#9c665c]/60 hover:bg-[#9c665c]/5 p-1.5 flex items-center justify-center cursor-grab active:cursor-grabbing transition-all overflow-hidden"
+                          className="group relative aspect-square rounded-lg border border-[#e3dfd8] bg-white hover:border-[#9c665c]/40 hover:bg-[#faf8f5] p-3 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing transition-all overflow-hidden shadow-sm"
                         >
                           {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-full h-full object-contain drop-shadow-sm group-hover:scale-105 transition-transform duration-200 select-none pointer-events-none" />
+                            <img src={item.image} alt={item.name} className="flex-1 w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-300 select-none pointer-events-none mb-1.5" />
                           ) : (
-                            <span className="text-2xl select-none pointer-events-none">{(item as any).symbol}</span>
+                            <span className="text-4xl flex-1 flex items-center select-none pointer-events-none mb-1.5">{(item as any).symbol}</span>
                           )}
-                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[8px] font-bold text-white block text-center truncate leading-tight">{item.name}</span>
-                          </div>
-                          <span className="absolute top-1 right-1 text-[7px] font-extrabold text-[#9c665c] bg-white/85 px-1 py-0.5 rounded leading-none">${item.price}</span>
+                          <span className="text-xs font-bold text-[#8a7b72] group-hover:text-[#5c4d44] truncate w-full text-center tracking-wide">{item.name}</span>
+                          <span className="absolute top-2 right-2 text-[10px] font-sans font-bold text-[#9c665c] bg-white/90 backdrop-blur-sm px-1.5 py-0.5 rounded-md border border-[#e3dfd8]/50 shadow-sm">${item.price}</span>
                         </div>
                       ))}
                     </div>
@@ -655,21 +683,21 @@ export function WorkshopStudio() {
 
           {/* 底紙選擇 */}
           {leftMode === "bases" && (
-            <div className="p-3 flex flex-col gap-2">
+            <div className="p-4 flex flex-col gap-3 overflow-y-auto flex-1 custom-scrollbar">
               {MOCK_BASES.map(b => {
                 const isCurrent = selectedBase.id === b.id;
                 return (
                   <button
                     key={b.id}
                     onClick={() => setSelectedBase(b)}
-                    className={`w-full p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${isCurrent ? "border-[#9c665c] bg-[#9c665c]/5 shadow-sm" : "border-[color:var(--line)] hover:border-[color:var(--muted)]/40 bg-[color:var(--background)]"}`}
+                    className={`w-full p-4 rounded-lg border text-left transition-all flex items-center gap-4 ${isCurrent ? "border-[#9c665c] bg-[#faf8f5] shadow-sm" : "border-[#e3dfd8] hover:border-[#c5c0b8] bg-white"}`}
                   >
-                    <div className="w-8 h-8 rounded-full border border-black/10 shadow-inner shrink-0" style={{ backgroundColor: b.color }} />
+                    <div className="w-10 h-10 rounded-md border border-black/10 shadow-inner shrink-0" style={{ backgroundColor: b.color }} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-bold truncate">{b.name}</p>
-                      <p className="text-[10px] text-[color:var(--muted)] truncate">{b.desc}</p>
+                      <p className="text-sm font-bold text-[#4a423e] truncate tracking-wide">{b.name}</p>
+                      <p className="text-xs text-[#8a7b72] truncate mt-1">{b.desc}</p>
                     </div>
-                    <span className="text-[10px] font-bold text-[#9c665c] shrink-0">${b.price}</span>
+                    <span className="text-sm font-sans font-bold text-[#9c665c] shrink-0">${b.price}</span>
                   </button>
                 );
               })}
@@ -678,232 +706,227 @@ export function WorkshopStudio() {
 
           {/* 文字刻字 */}
           {leftMode === "text" && (
-            <div className="p-4 flex flex-col gap-3">
-              <p className="text-[11px] text-[color:var(--muted)] leading-relaxed">輸入簡短字句，模擬手工燙金覆膜效果：</p>
+            <div className="p-5 flex flex-col gap-4 flex-1 bg-[#fdfdfc]">
+              <p className="text-sm text-[#8a7b72] leading-relaxed tracking-wide">輸入簡短字句，模擬手工燙金覆膜效果：</p>
               <input
                 type="text"
                 value={customTextContent}
                 onChange={e => setCustomTextContent(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddText()}
                 placeholder="例：Happy Birthday"
-                className="h-10 rounded-lg border border-[color:var(--line)] bg-[color:var(--background)] px-3 text-xs outline-none focus:ring-2 focus:ring-[#9c665c]/40"
+                className="h-11 rounded-md border border-[#e3dfd8] bg-white px-4 text-sm text-[#5c4d44] outline-none focus:border-[#9c665c] focus:ring-1 focus:ring-[#9c665c]/20 transition-all shadow-sm font-sans"
               />
-              <Button size="sm" onClick={handleAddText} disabled={!customTextContent.trim()}>
+              <button onClick={handleAddText} disabled={!customTextContent.trim()} className="h-10 rounded-md bg-[#f2efe9] border border-[#e3dfd8] hover:bg-[#e3dfd8] disabled:opacity-50 disabled:hover:bg-[#f2efe9] text-sm font-bold tracking-wide text-[#5c4d44] transition-colors shadow-sm">
                 新增燙金圖層 (+NT$60)
-              </Button>
+              </button>
             </div>
           )}
         </div>
-      </div>
 
-      {/* ══ 中央：畫布區 (col-span-5) ══ */}
-      <div className="lg:col-span-5 flex flex-col h-full">
-        <div className="w-full h-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-5 py-8 shadow-sm flex flex-col items-center justify-center relative min-h-[640px]">
-          {/* 背景網格 */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:20px_20px] opacity-30 rounded-xl pointer-events-none" />
+        {/* ══ 中央：畫布區 (flex-1) ══ */}
+        <div className="flex-1 flex flex-col h-full bg-[#f2efe9] relative overflow-hidden">
+          {/* 頂部快速工具列 */}
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white/90 backdrop-blur border border-[#e3dfd8] rounded-lg p-1.5 z-20 shadow-sm">
+             <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#f2efe9] text-[#8a7b72] hover:text-[#5c4d44] transition-colors" title="復原 (Undo)"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 10h10a5 5 0 015 5v2M3 10l5 5M3 10l5-5"/></svg></button>
+             <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#f2efe9] text-[#8a7b72] hover:text-[#5c4d44] transition-colors" title="重做 (Redo)"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10H11a5 5 0 00-5 5v2M21 10l-5 5M21 10l-5-5"/></svg></button>
+             <div className="w-px h-5 bg-[#e3dfd8] mx-1.5" />
+             <button className="w-8 h-8 flex items-center justify-center rounded hover:bg-[#f2efe9] text-[#8a7b72] hover:text-[#5c4d44] transition-colors" title="置中對齊" onClick={() => updateActiveLayer({x: 50, y: 50})}><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg></button>
+          </div>
 
-          {/* 卡片區域與控制列 (共同容器，確保等寬) */}
-          <div className="relative w-full max-w-[340px] flex flex-col z-10 shrink-0">
-            {/* 1. 卡片本身 */}
-            <div
-              ref={canvasRef}
-              onClick={() => setActiveLayerId(null)}
-              onDragOver={handleDragOverCanvas}
-              onDrop={handleDropOnCanvas}
-              className="w-full aspect-[3/4] rounded-2xl shadow-2xl transition-colors duration-500 relative cursor-default select-none"
-              style={{ backgroundColor: selectedBase.color }}
-            >
-              <div className="absolute inset-3 border border-black/[0.07] dark:border-white/[0.1] rounded-xl pointer-events-none flex flex-col justify-between p-3 z-0">
-                <span className="text-[7px] text-black/30 tracking-widest uppercase">Floriography</span>
-                <span className="text-[7px] text-black/30 tracking-widest text-right">Studio</span>
+          <div className="w-full h-full p-6 sm:p-10 flex flex-col items-center justify-center relative min-h-[640px]">
+            {/* 背景網格 - 細緻的手作點陣 */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#dcd8d1_1px,_transparent_1px)] [background-size:24px_24px] opacity-60 pointer-events-none" />
+
+            {/* 卡片區域與控制列 (共同容器) */}
+            <div className="relative w-full max-w-[420px] flex flex-col z-10 shrink-0">
+              {/* 1. 卡片本身 */}
+              <div
+                ref={canvasRef}
+                onClick={() => setActiveLayerId(null)}
+                onDragOver={handleDragOverCanvas}
+                onDrop={handleDropOnCanvas}
+                className="w-full aspect-[3/4] shadow-[0_15px_40px_rgba(100,90,80,0.15)] transition-colors duration-500 relative cursor-default select-none border border-black/5 rounded-sm"
+                style={{ backgroundColor: selectedBase.color }}
+              >
+                <div className="absolute inset-5 border border-black/[0.04] pointer-events-none flex flex-col justify-between p-4 z-0">
+                  <span className="text-[9px] text-[#8a7b72]/60 tracking-[0.25em] uppercase font-bold font-sans">Floriography</span>
+                  <span className="text-[9px] text-[#8a7b72]/60 tracking-[0.25em] text-right font-sans">CRAFT STUDIO</span>
+                </div>
+
+                {showCenterX && <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[#9c665c] z-20 pointer-events-none opacity-40" />}
+                {showCenterY && <div className="absolute top-1/2 left-0 right-0 h-px bg-[#9c665c] z-20 pointer-events-none opacity-40" />}
+
+                {layers.map(layer => {
+                  const isActive = activeLayerId === layer.id;
+                  const isDragging = draggingLayerId === layer.id;
+                  const isTransforming = transformingLayerId === layer.id;
+                  const currentZ = (isDragging || isTransforming) ? 999 : layer.zIndex;
+                  return (
+                    <div
+                      key={layer.id}
+                      className={`absolute flex flex-col items-center justify-center select-none ${isDragging || isTransforming ? "transition-none" : "transition-all duration-75"}`}
+                      style={{ left: `${layer.x}%`, top: `${layer.y}%`, transform: `translate(-50%,-50%) rotate(${layer.rotation||0}deg) scale(${layer.scale})`, zIndex: currentZ }}
+                    >
+                      <div
+                        className={`relative w-full h-full p-2.5 cursor-grab active:cursor-grabbing flex items-center justify-center ${isActive ? "ring-1 ring-[#9c665c]/60 ring-offset-2 ring-offset-transparent bg-black/5 rounded-sm" : ""}`}
+                        onPointerDown={e => handlePointerDown(e, layer)}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {isActive && (
+                          <>
+                            <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border border-[#9c665c] rounded-sm cursor-nwse-resize z-50 shadow-sm" onPointerDown={e => handleScalePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()} />
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-5 h-5 bg-white border border-[#9c665c] rounded-full cursor-crosshair z-50 shadow-sm flex items-center justify-center" onPointerDown={e => handleRotatePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()}>
+                              <div className="w-1.5 h-1.5 bg-[#9c665c] rounded-full pointer-events-none"/>
+                            </div>
+                          </>
+                        )}
+                        {layer.type === "text" ? (
+                          <p className="font-[family-name:var(--font-display)] font-bold text-2xl tracking-widest text-[#d4af37] drop-shadow-sm whitespace-nowrap pointer-events-none relative z-10" style={{ textShadow: "0 1px 1px rgba(0,0,0,0.15)" }}>{layer.text}</p>
+                        ) : layer.image ? (
+                          <img src={layer.image} alt={layer.name} className="w-32 h-32 object-contain filter drop-shadow-md select-none pointer-events-none relative z-10" />
+                        ) : (
+                          <span className="text-6xl filter drop-shadow-md select-none pointer-events-none relative z-10">{layer.symbol}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {layers.length === 0 && (
+                  <div className="text-center p-8 pointer-events-none opacity-40 z-10 absolute inset-0 flex flex-col items-center justify-center">
+                    <svg className="w-10 h-10 mx-auto mb-3 text-[#8a7b72]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <p className="text-xs font-sans tracking-widest uppercase text-[#5c4d44] font-bold">Drop floral assets</p>
+                  </div>
+                )}
               </div>
 
-              {showCenterX && <div className="absolute left-1/2 top-0 bottom-0 w-px bg-[#9c665c]/60 z-20 pointer-events-none" />}
-              {showCenterY && <div className="absolute top-1/2 left-0 right-0 h-px bg-[#9c665c]/60 z-20 pointer-events-none" />}
+              {/* 2. 精確控制列 (緊接在卡片正下方) */}
+              <div className={`mt-5 w-full bg-white/95 border border-[#e3dfd8] rounded-lg shadow-lg p-4 transition-all duration-300 backdrop-blur-md ${activeLayer ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}>
+                {(() => {
+                  const displayLayer = activeLayer || layers[0] || { name: "Placeholder", scale: 1, rotation: 0 };
+                  return (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-bold text-[#5c4d44] truncate flex-1 tracking-wider">{displayLayer.name}</span>
+                        <div className="flex items-center gap-1.5 shrink-0 bg-[#f7f5f0] rounded-md p-1 border border-[#e3dfd8]">
+                          <button onClick={() => adjustScale(-0.1)} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm text-sm font-bold flex items-center justify-center text-[#5c4d44]">-</button>
+                          <span className="text-xs font-sans font-bold w-10 text-center text-[#8a7b72]">{Number(displayLayer.scale).toFixed(1)}x</span>
+                          <button onClick={() => adjustScale(0.1)} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm text-sm font-bold flex items-center justify-center text-[#5c4d44]">+</button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1 flex-1 bg-[#f7f5f0] rounded-md p-1 border border-[#e3dfd8]">
+                          <button onClick={() => adjustRotation(-15)} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm text-sm flex items-center justify-center text-[#5c4d44]">↺</button>
+                          <span className="text-xs font-sans font-bold flex-1 text-center text-[#8a7b72]">{displayLayer.rotation||0}°</span>
+                          <button onClick={() => adjustRotation(15)} className="w-7 h-7 rounded hover:bg-white hover:shadow-sm text-sm flex items-center justify-center text-[#5c4d44]">↻</button>
+                        </div>
+                        <div className="w-px h-6 bg-[#e3dfd8] shrink-0" />
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => bringToFront()} className="h-9 px-3 bg-[#f7f5f0] border border-[#e3dfd8] hover:bg-white hover:shadow-sm rounded-md text-xs font-bold text-[#8a7b72] hover:text-[#5c4d44]" title="移至最前">↑</button>
+                          <button onClick={() => sendToBack()} className="h-9 px-3 bg-[#f7f5f0] border border-[#e3dfd8] hover:bg-white hover:shadow-sm rounded-md text-xs font-bold text-[#8a7b72] hover:text-[#5c4d44]" title="移至最後">↓</button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
 
-              {layers.map(layer => {
-                const isActive = activeLayerId === layer.id;
-                const isDragging = draggingLayerId === layer.id;
-                const isTransforming = transformingLayerId === layer.id;
-                const currentZ = (isDragging || isTransforming) ? 999 : layer.zIndex;
+        {/* ══ 右側：屬性與圖層面板 (w-[320px]) ══ */}
+        <div className="w-[320px] flex flex-col bg-[#fdfdfc] border-l border-[#e3dfd8] shrink-0 z-10 shadow-[-2px_0_12px_rgba(0,0,0,0.02)]">
+
+          {/* 圖層面板 */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="px-5 py-3 border-b border-[#e3dfd8] flex items-center justify-between shrink-0 bg-[#f7f5f0]">
+              <span className="text-xs font-sans font-bold tracking-widest text-[#8a7b72] uppercase">Layers</span>
+              <button className="text-[#a8a098] hover:text-[#5c4d44]"><svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4v16m8-8H4"/></svg></button>
+            </div>
+            <div className="p-3 flex flex-col gap-1.5 overflow-y-auto flex-1 custom-scrollbar">
+              {/* 底紙固定層 */}
+              <div className="p-3 rounded-lg bg-[#fdfdfc] border border-[#e3dfd8] flex items-center gap-3 shadow-sm">
+                <div className="w-4 h-4 rounded-sm border border-black/10 shrink-0" style={{ backgroundColor: selectedBase.color }} />
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-bold text-[#5c4d44] truncate block tracking-wide">{selectedBase.name}</span>
+                </div>
+                <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#a8a098] shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              </div>
+
+              {[...layers].sort((a,b) => b.zIndex - a.zIndex).map(l => {
+                const isSelected = activeLayerId === l.id;
+                const isPanelDragging = panelDraggingLayerId === l.id;
                 return (
                   <div
-                    key={layer.id}
-                    className={`absolute flex flex-col items-center justify-center select-none ${isDragging || isTransforming ? "transition-none" : "transition-all duration-75"}`}
-                    style={{ left: `${layer.x}%`, top: `${layer.y}%`, transform: `translate(-50%,-50%) rotate(${layer.rotation||0}deg) scale(${layer.scale})`, zIndex: currentZ }}
+                    key={l.id}
+                    draggable
+                    onDragStart={e => handlePanelDragStart(e, l.id)}
+                    onDragOver={handlePanelDragOver}
+                    onDrop={e => handlePanelDrop(e, l.id)}
+                    onDragEnd={() => setPanelDraggingLayerId(null)}
+                    onClick={() => setActiveLayerId(l.id)}
+                    className={`p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-colors flex items-center justify-between group ${isSelected ? "border-[#9c665c]/40 bg-[#faf8f5] shadow-sm" : "border-transparent hover:bg-[#f2efe9]"} ${isPanelDragging ? "opacity-30 border-dashed border-[#a8a098]" : ""}`}
                   >
-                    {isActive && <div className="absolute inset-0 bg-[#e6c1a8]/40 blur-2xl rounded-full scale-[1.8] pointer-events-none mix-blend-multiply dark:mix-blend-screen" />}
-                    <div
-                      className="relative w-full h-full p-2 rounded-xl cursor-grab active:cursor-grabbing flex items-center justify-center"
-                      onPointerDown={e => handlePointerDown(e, layer)}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      {isActive && (
-                        <>
-                          <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border-[3px] border-[#9c665c] rounded-full cursor-nwse-resize z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onPointerDown={e => handleScalePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#9c665c] pointer-events-none" />
-                          </div>
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-[3px] border-[#839b83] rounded-full cursor-crosshair z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onPointerDown={e => handleRotatePointerDown(e, layer)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onClick={e => e.stopPropagation()}>
-                            <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-[#839b83] pointer-events-none" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-                          </div>
-                          <div className="absolute -top-2 -right-2 w-7 h-7 bg-[#9c665c] text-white rounded-full cursor-pointer z-50 shadow-sm flex items-center justify-center hover:scale-110 transition-transform" onClick={e => { e.stopPropagation(); deleteLayer(layer.id); }} onPointerDown={e => e.stopPropagation()}>
-                            <svg viewBox="0 0 24 24" className="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                          </div>
-                        </>
-                      )}
-                      {layer.type === "text" ? (
-                        <p className="font-bold text-xl tracking-widest text-amber-500 drop-shadow-sm whitespace-nowrap pointer-events-none relative z-10">{layer.text}</p>
-                      ) : layer.image ? (
-                        <img src={layer.image} alt={layer.name} className="w-28 h-28 object-contain filter drop-shadow-lg select-none pointer-events-none relative z-10" />
-                      ) : (
-                        <span className="text-5xl filter drop-shadow-lg select-none pointer-events-none relative z-10">{layer.symbol}</span>
-                      )}
+                    <div className="flex items-center gap-3 truncate pointer-events-none">
+                      <div className="w-5 h-5 flex items-center justify-center bg-black/5 rounded-sm shrink-0">
+                        {l.image ? <img src={l.image} alt={l.name} className="w-4 h-4 object-contain" /> : <span className="text-[10px]">{l.symbol || "T"}</span>}
+                      </div>
+                      <span className={`text-xs tracking-wide truncate max-w-[140px] ${isSelected ? "font-bold text-[#9c665c]" : "font-medium text-[#5c4d44]"}`}>{l.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-sans font-bold ${isSelected ? "text-[#9c665c]" : "text-[#a8a098]"}`}>+{l.price}</span>
+                      <button onClick={e => { e.stopPropagation(); deleteLayer(l.id); }} className="text-[#a8a098] hover:text-[#9c665c] opacity-0 group-hover:opacity-100 transition-opacity"><svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                     </div>
                   </div>
                 );
               })}
-
-              {layers.length === 0 && (
-                <div className="text-center p-6 pointer-events-none opacity-40 z-10 absolute inset-0 flex flex-col items-center justify-center">
-                  <svg className="w-10 h-10 mx-auto mb-2 text-[color:var(--muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                  <p className="text-xs font-semibold">從左側拖曳花材置入</p>
-                </div>
-              )}
             </div>
+          </div>
 
-            {/* 2. 精確控制列 (緊接在卡片正下方) */}
-            <div className={`mt-3 w-full bg-[color:var(--card)] border border-[color:var(--line)] rounded-xl shadow-md px-4 py-3 transition-all duration-300 ${activeLayer ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-2 pointer-events-none"}`}>
-              {(() => {
-                const displayLayer = activeLayer || layers[0] || { name: "Placeholder", scale: 1, rotation: 0 };
-                return (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-[#9c665c] truncate flex-1 tracking-wide">{displayLayer.name}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button onClick={() => adjustScale(-0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">-</button>
-                        <span className="text-sm font-mono w-11 text-center">{Number(displayLayer.scale).toFixed(1)}x</span>
-                        <button onClick={() => adjustScale(0.1)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-sm font-bold flex items-center justify-center">+</button>
+          {/* 花語解析面板 (取代原本的 Inspector) */}
+          <div className="border-t border-[#e3dfd8] bg-[#fdfdfc] flex flex-col shrink-0 h-[280px]">
+            <div className="px-5 py-3 border-b border-[#e3dfd8] flex items-center gap-2 shrink-0 bg-[#f7f5f0]">
+              <span className="text-xs font-sans font-bold tracking-widest text-[#8a7b72] uppercase">花語解析</span>
+            </div>
+            {activeLayer ? (
+              <div className="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar h-full">
+                {activeLayer.type === "flower" || activeLayer.type === "accent" ? (
+                  activeLayer.meaning ? (
+                    <div className="flex flex-col gap-3 h-full">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{activeLayer.symbol || "🌸"}</span>
+                        <h4 className="text-sm font-bold text-[#5c4d44]">{activeLayer.name}</h4>
                       </div>
+                      <div className="w-6 h-px bg-[#e3dfd8] mb-1" />
+                      <p className="text-sm text-[#8a7b72] leading-relaxed tracking-wide whitespace-pre-line flex-1">
+                        {activeLayer.meaning}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 flex-1">
-                        <button onClick={() => adjustRotation(-15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↺</button>
-                        <span className="text-sm font-mono w-11 text-center">{displayLayer.rotation||0}°</span>
-                        <button onClick={() => adjustRotation(15)} className="w-8 h-8 rounded-lg border bg-[color:var(--background)] hover:bg-[#9c665c]/10 text-base flex items-center justify-center">↻</button>
-                      </div>
-                      <div className="w-px h-6 bg-[color:var(--line)] shrink-0" />
-                      <div className="grid grid-cols-3 gap-1 w-[64px] shrink-0">
-                        <div/><button onClick={() => nudgePos("up")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▲</button><div/>
-                        <button onClick={() => nudgePos("left")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">◀</button>
-                        <button onClick={() => nudgePos("down")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▼</button>
-                        <button onClick={() => nudgePos("right")} className="h-6 bg-[color:var(--line)]/40 hover:bg-[#9c665c]/20 rounded text-[11px] flex items-center justify-center">▶</button>
-                      </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-[#a8a098]">
+                      <span className="text-2xl mb-2">{activeLayer.symbol || "🌿"}</span>
+                      <p className="text-xs tracking-wide">目前此花材沒有特別紀錄的花語。</p>
                     </div>
+                  )
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-[#a8a098]">
+                    <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <p className="text-xs tracking-wide">{activeLayer.type === "text" ? "自訂刻字圖層" : "非花材物件"}</p>
                   </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══ 右側：圖層 + 花語 + 結帳 (col-span-3) ══ */}
-      <div className="lg:col-span-3 flex flex-col gap-4">
-
-        {/* 圖層面板 */}
-        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-[color:var(--line)] flex items-center justify-between">
-            <span className="text-[11px] font-bold tracking-widest text-[color:var(--muted)] uppercase">圖層 Layers</span>
-            <span className="text-[10px] text-[color:var(--muted)]">{layers.length} 層</span>
-          </div>
-          <div className="p-3 flex flex-col gap-1.5 max-h-[260px] overflow-y-auto">
-            {/* 底紙固定層 */}
-            <div className="p-2.5 rounded-lg bg-[color:var(--background)] border border-[color:var(--line)] flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: selectedBase.color }} />
-              <div className="min-w-0 flex-1">
-                <span className="text-[9px] text-[color:var(--muted)] block">底紙</span>
-                <span className="text-[10px] font-bold truncate block">{selectedBase.name}</span>
+                )}
               </div>
-              <span className="text-[10px] font-bold text-[color:var(--muted)]">${selectedBase.price}</span>
-            </div>
-
-            {[...layers].sort((a,b) => b.zIndex - a.zIndex).map(l => {
-              const isSelected = activeLayerId === l.id;
-              const isPanelDragging = panelDraggingLayerId === l.id;
-              return (
-                <div
-                  key={l.id}
-                  draggable
-                  onDragStart={e => handlePanelDragStart(e, l.id)}
-                  onDragOver={handlePanelDragOver}
-                  onDrop={e => handlePanelDrop(e, l.id)}
-                  onDragEnd={() => setPanelDraggingLayerId(null)}
-                  onClick={() => setActiveLayerId(l.id)}
-                  className={`p-2 px-2.5 rounded-lg border cursor-grab active:cursor-grabbing transition-all flex items-center justify-between group ${isSelected ? "border-[#9c665c] bg-[#9c665c]/5 text-[#9c665c]" : "border-[color:var(--line)] hover:bg-[color:var(--background)]"} ${isPanelDragging ? "opacity-30 border-dashed" : ""}`}
-                >
-                  <div className="flex items-center gap-2 truncate pointer-events-none">
-                    <div className="w-5 h-5 flex items-center justify-center bg-white/50 dark:bg-black/20 rounded shrink-0">
-                      {l.image ? <img src={l.image} alt={l.name} className="w-4 h-4 object-contain" /> : <span className="text-[10px]">{l.symbol || "✍️"}</span>}
-                    </div>
-                    <span className={`text-[10px] truncate max-w-[70px] ${isSelected ? "font-bold" : "font-medium"}`}>{l.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] font-bold">+{l.price}</span>
-                    <button onClick={e => { e.stopPropagation(); deleteLayer(l.id); }} className="text-[10px] text-[color:var(--muted)] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5">✕</button>
-                  </div>
-                </div>
-              );
-            })}
-
-            {layers.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-6 opacity-50">
-                <span className="text-xl mb-1">🍃</span>
-                <p className="text-[10px] text-center text-[color:var(--muted)]">尚無花材</p>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-[#a8a098]">
+                <svg className="w-8 h-8 mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                 <span className="text-xs font-sans tracking-wide">點擊花材，探索背後的故事</span>
               </div>
             )}
           </div>
-        </div>
 
-        {/* 花語共鳴 */}
-        {layers.some(l => l.meaning) && (
-          <div className="rounded-xl border border-[#9c665c]/25 bg-[#9c665c]/5 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#9c665c]/15 flex items-center gap-2">
-              <svg className="w-3.5 h-3.5 text-[#9c665c]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-              <span className="text-[11px] font-bold tracking-widest text-[#9c665c] uppercase">花語共鳴</span>
-            </div>
-            <div className="p-3 flex flex-col gap-2.5 max-h-[220px] overflow-y-auto">
-              {layers.filter(l => l.meaning).map(l => (
-                <div key={`meaning-${l.id}`} className="flex flex-col border-b border-[#9c665c]/10 pb-2.5 last:border-0 last:pb-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-5 h-5 flex items-center justify-center bg-[#9c665c]/10 rounded-full shrink-0">
-                      {l.image ? <img src={l.image} alt={l.name} className="w-3.5 h-3.5 object-contain" /> : <span className="text-[9px]">{l.symbol}</span>}
-                    </div>
-                    <span className="text-[11px] font-bold text-[color:var(--foreground)]">{l.name}</span>
-                  </div>
-                  <p className="text-[10px] text-[color:var(--muted)] leading-relaxed pl-7">{l.meaning}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 結帳區 */}
-        <div className="rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] shadow-sm p-4 flex flex-col gap-3">
-          <div className="flex items-end justify-between">
-            <span className="text-xs text-[color:var(--muted)]">設計總額</span>
-            <div className="text-right">
-              <span className="text-[10px] text-[#9c665c] font-bold block">TWD</span>
-              <span className="text-2xl font-extrabold leading-none">${totalPrice}</span>
-            </div>
-          </div>
-          <Button onClick={handleSaveAndCheckout} className="w-full py-3 text-sm font-bold bg-gradient-to-r from-[#9c665c] to-[#b5846a] hover:opacity-90 transition-opacity border-none text-white shadow-md">
-            確認設計，送出委託
-          </Button>
         </div>
       </div>
-
     </div>
   );
 }

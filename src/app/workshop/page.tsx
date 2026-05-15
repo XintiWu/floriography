@@ -41,9 +41,9 @@ export default function WorkshopPage() {
       </div>
 
       {/* 核心編輯器 */}
-      <Container className="py-8 sm:py-10">
+      <div className="w-full mt-4 sm:mt-8">
         <WorkshopStudio />
-      </Container>
+      </div>
     </main>
   );
 }

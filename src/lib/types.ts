@@ -18,6 +18,7 @@ export type Card = {
     moods: string[];
   };
   blurb?: string;
+  description?: string;
 };
 
 export type Flower = {
