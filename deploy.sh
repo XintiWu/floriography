@@ -31,6 +31,8 @@ rsync -avz --exclude 'node_modules' \
 echo "🛠️ 在伺服器上執行構建..."
 ssh -i $KEY_PATH $SERVER_USER@$SERVER_IP << EOF
     cd $REMOTE_DIR
+    # 清理已刪除的舊 workshop 檔案
+    rm -rf src/app/\(site\)/workshop src/components/workshop
     # 安裝依賴
     npm install
     # 執行構建
