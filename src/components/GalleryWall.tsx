@@ -3,8 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Clock, Flower2, ArrowRight, Share2, Copy, Check } from "lucide-react";
+import { Eye, Clock, Flower2, Share2, Copy, Check, Heart, MessageSquare, ArrowRight } from "lucide-react";
 import { Container } from "@/components/Container";
+
+interface Comment {
+  id: string;
+  author_name: string;
+  text: string;
+  created_at: string;
+}
 
 interface SharedCard {
   id: string;
@@ -17,6 +24,8 @@ interface SharedCard {
   author_name: string;
   view_count: number;
   created_at: string;
+  like_count?: number;
+  comments?: Comment[];
 }
 
 function timeAgo(dateStr: string): string {
@@ -72,12 +81,32 @@ function FlowerMeaningBadges({ names, meanings }: { names: string[]; meanings: s
 function CardTweet({ card, index }: { card: SharedCard; index: number }) {
   const [copied, setCopied] = useState(false);
 
+  // Social interactive states
+  const [likes, setLikes] = useState(card.like_count || 0);
+  const [hasLiked, setHasLiked] = useState(false);
+
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
     const url = `${window.location.origin}/card/${card.id}`;
     navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (hasLiked) return;
+    setHasLiked(true);
+    setLikes((prev) => prev + 1);
+    try {
+      const res = await fetch(`/api/cards/${card.id}/like`, { method: "POST" });
+      const data = await res.json();
+      if (typeof data.likeCount === "number") {
+        setLikes(data.likeCount);
+      }
+    } catch (err) {
+      console.error("Failed to like:", err);
+    }
   };
 
   return (
@@ -166,6 +195,100 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
           </p>
         )}
 
+        {/* Social Metrics Bar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            margin: "12px 0 8px",
+            paddingTop: "10px",
+            borderTop: "1px dashed var(--line)",
+          }}
+        >
+          {/* Like button */}
+          <button
+            onClick={handleLike}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              fontSize: "12px",
+              color: hasLiked ? "hsl(30 50% 40%)" : "var(--muted)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              backgroundColor: hasLiked ? "rgba(179, 130, 64, 0.06)" : "transparent",
+              fontWeight: hasLiked ? 600 : 400,
+              transition: "all 0.2s",
+            }}
+          >
+            <Heart size={13} fill={hasLiked ? "hsl(30 50% 40%)" : "none"} strokeWidth={hasLiked ? 1.5 : 2} />
+            <span>{likes}</span>
+          </button>
+
+          {/* Comment button - links to card detail page */}
+          <Link
+            href={`/card/${card.id}#comments`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              fontSize: "12px",
+              color: "var(--muted)",
+              textDecoration: "none",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(92, 64, 51, 0.05)";
+              e.currentTarget.style.color = "hsl(30 45% 30%)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--muted)";
+            }}
+          >
+            <MessageSquare size={13} />
+            <span>{card.comments?.length || 0}</span>
+          </Link>
+        </div>
+
+        {/* Top Comment (if exists, links to details comments) */}
+        {card.comments && card.comments.length > 0 && (
+          <Link href={`/card/${card.id}#comments`} style={{ textDecoration: "none", display: "block" }}>
+            <div
+              style={{
+                backgroundColor: "rgba(179, 130, 64, 0.04)",
+                borderLeft: "2px solid rgba(179, 130, 64, 0.25)",
+                padding: "8px 12px",
+                borderRadius: "0 8px 8px 0",
+                fontSize: "12px",
+                margin: "8px 0",
+                lineHeight: 1.4,
+                cursor: "pointer",
+                transition: "background-color 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(179, 130, 64, 0.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(179, 130, 64, 0.04)";
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "hsl(30 45% 30%)", marginRight: "4px" }}>
+                {card.comments[card.comments.length - 1].author_name}：
+              </span>
+              <span style={{ color: "var(--foreground)", opacity: 0.85 }}>
+                {card.comments[card.comments.length - 1].text}
+              </span>
+            </div>
+          </Link>
+        )}
+
         {/* Footer */}
         <div
           style={{
@@ -174,7 +297,7 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
             justifyContent: "space-between",
             borderTop: "1px solid var(--line)",
             paddingTop: "10px",
-            marginTop: "4px",
+            marginTop: "10px",
           }}
         >
           <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>
@@ -221,16 +344,39 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
 export function GalleryWall() {
   const [cards, setCards] = useState<SharedCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const LIMIT = 12;
 
   useEffect(() => {
-    fetch("/api/cards")
+    fetch(`/api/cards?limit=${LIMIT}&offset=0`)
       .then((r) => r.json())
       .then((data) => {
         setCards(data.cards || []);
+        setHasMore((data.cards || []).length === LIMIT);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextOffset = offset + LIMIT;
+
+    fetch(`/api/cards?limit=${LIMIT}&offset=${nextOffset}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const newCards = data.cards || [];
+        setCards((prev) => [...prev, ...newCards]);
+        setOffset(nextOffset);
+        setHasMore(newCards.length === LIMIT);
+        setLoadingMore(false);
+      })
+      .catch(() => setLoadingMore(false));
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)", paddingBottom: "80px" }}>
@@ -308,17 +454,56 @@ export function GalleryWall() {
                 gap: "20px",
               }}
             >
-              {Array.from({ length: 6 }).map((_, i) => (
-                <motion.div
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
                   key={i}
-                  animate={{ opacity: [0.4, 0.8, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
                   style={{
                     height: "360px",
                     borderRadius: "16px",
-                    background: "var(--line)",
+                    background: "rgba(139, 90, 43, 0.03)",
+                    border: "1px solid rgba(139, 90, 43, 0.08)",
+                    position: "relative",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
                   }}
-                />
+                >
+                  {/* Vertical scanning light beam */}
+                  <motion.div
+                    animate={{
+                      y: ["-100%", "250%"],
+                    }}
+                    transition={{
+                      duration: 1.6,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: i * 0.15,
+                    }}
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: "40%",
+                      background: "linear-gradient(to bottom, transparent, rgba(188, 158, 125, 0.18), transparent)",
+                      pointerEvents: "none",
+                      zIndex: 2,
+                    }}
+                  />
+                  
+                  {/* Card Image Skeleton Placeholder */}
+                  <div style={{ height: "65%", background: "rgba(139, 90, 43, 0.02)", borderBottom: "1px solid rgba(139, 90, 43, 0.05)" }} />
+                  
+                  {/* Card Content Skeleton Placeholders */}
+                  <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ height: "14px", width: "65%", background: "rgba(139, 90, 43, 0.08)", borderRadius: "4px" }} />
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <div style={{ height: "18px", width: "50px", background: "rgba(139, 90, 43, 0.06)", borderRadius: "99px" }} />
+                      <div style={{ height: "18px", width: "80px", background: "rgba(139, 90, 43, 0.04)", borderRadius: "99px" }} />
+                    </div>
+                    <div style={{ height: "10px", width: "90%", background: "rgba(139, 90, 43, 0.04)", borderRadius: "3px", marginTop: "4px" }} />
+                  </div>
+                </div>
               ))}
             </div>
           ) : cards.length === 0 ? (
@@ -347,20 +532,54 @@ export function GalleryWall() {
               </Link>
             </div>
           ) : (
-            <AnimatePresence>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                  gap: "20px",
-                  alignItems: "start",
-                }}
-              >
-                {cards.map((card, i) => (
-                  <CardTweet key={card.id} card={card} index={i} />
-                ))}
-              </div>
-            </AnimatePresence>
+            <>
+              <AnimatePresence>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                    gap: "20px",
+                    alignItems: "start",
+                  }}
+                >
+                  {cards.map((card, i) => (
+                    <CardTweet key={card.id} card={card} index={i} />
+                  ))}
+                </div>
+              </AnimatePresence>
+
+              {/* Load More Button */}
+              {hasMore && (
+                <div style={{ textAlign: "center", marginTop: "48px" }}>
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    style={{
+                      padding: "12px 36px",
+                      borderRadius: "999px",
+                      border: "1px solid var(--line)",
+                      background: "transparent",
+                      color: "var(--foreground)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      transition: "all 0.25s ease",
+                      outline: "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(92, 64, 51, 0.04)";
+                      e.currentTarget.style.borderColor = "hsl(33 30% 75%)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                      e.currentTarget.style.borderColor = "var(--line)";
+                    }}
+                  >
+                    {loadingMore ? "正在載入..." : "載入更多"}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </Container>
       </div>

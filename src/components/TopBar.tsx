@@ -5,13 +5,11 @@ import { useEditorState } from '../store/useEditorState';
 import { Download, Info, Leaf, ArrowLeft, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
-import { DigitalCardOverlay } from './DigitalCardOverlay';
 
 export const TopBar: React.FC = () => {
   const router = useRouter();
-  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen } = useEditorState();
+  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen, setShareOpen } = useEditorState();
   const [isHovering, setIsHovering] = useState(false);
-  const [isDigitalCardOpen, setIsDigitalCardOpen] = useState(false);
   const totalPrice = getTotalPrice();
   const usedAssets = getUsedAssets();
 
@@ -57,11 +55,11 @@ export const TopBar: React.FC = () => {
       <div style={styles.actions}>
         <button
           style={styles.digitalCardBtn}
-          onClick={() => setIsDigitalCardOpen(true)}
+          onClick={() => setShareOpen(true)}
           disabled={!cardBackground && canvasItems.length === 0}
         >
           <Sparkles size={16} />
-          數位賀卡
+          分享賀卡
         </button>
 
         <button 
@@ -115,11 +113,6 @@ export const TopBar: React.FC = () => {
           )}
         </div>
       </div>
-
-      <DigitalCardOverlay
-        isOpen={isDigitalCardOpen}
-        onClose={() => setIsDigitalCardOpen(false)}
-      />
     </div>
   );
 };

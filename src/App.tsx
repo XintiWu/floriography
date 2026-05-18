@@ -6,9 +6,10 @@ import { CanvasArea } from './components/CanvasArea';
 import { useEditorState } from './store/useEditorState';
 
 import { CheckoutOverlay } from './components/CheckoutOverlay';
+import { ShareOverlay } from './components/ShareOverlay';
 
 function App() {
-  const { isCheckoutOpen } = useEditorState();
+  const { isCheckoutOpen, isShareOpen } = useEditorState();
   const clearSelection = () => {
     useEditorState.getState().setSelectedItem(null);
   };
@@ -24,6 +25,7 @@ function App() {
         width: '100vw',
         background: 'var(--color-bg)',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
       <TopBar />
@@ -38,7 +40,7 @@ function App() {
         }}
       >
         <AnimatePresence>
-          {!isCheckoutOpen && (
+          {!isCheckoutOpen && !isShareOpen && (
             <motion.div
               key="left-sidebar"
               initial={{ width: 0, opacity: 0 }}
@@ -66,7 +68,7 @@ function App() {
         </motion.div>
 
         <AnimatePresence initial={false}>
-          {!isCheckoutOpen ? (
+          {!isCheckoutOpen && !isShareOpen ? (
             <motion.div
               key="right-sidebar"
               initial={{ width: 0, opacity: 0, x: 50 }}
@@ -77,7 +79,7 @@ function App() {
             >
               <RightSidebar />
             </motion.div>
-          ) : (
+          ) : isCheckoutOpen ? (
             <motion.div
               key="checkout-panel"
               initial={{ width: 0, opacity: 0, x: 100 }}
@@ -88,14 +90,18 @@ function App() {
             >
               <CheckoutOverlay />
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
 
       </div>
+
+      {/* Immersive Full Page Share Overlay */}
+      <AnimatePresence>
+        {isShareOpen && <ShareOverlay />}
+      </AnimatePresence>
     </div>
   );
 }
-
 
 export default App;
 

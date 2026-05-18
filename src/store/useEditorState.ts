@@ -18,6 +18,8 @@ interface EditorState {
   toggleLock: (id: string) => void;
   isCheckoutOpen: boolean;
   setCheckoutOpen: (open: boolean) => void;
+  isShareOpen: boolean;
+  setShareOpen: (open: boolean) => void;
   
   // Computed
   getTotalPrice: () => number;
@@ -85,6 +87,8 @@ export const useEditorState = create<EditorState>((set, get) => ({
   
   isCheckoutOpen: false,
   setCheckoutOpen: (open) => set({ isCheckoutOpen: open }),
+  isShareOpen: false,
+  setShareOpen: (open) => set({ isShareOpen: open }),
 
   getTotalPrice: () => {
     const state = get();
