@@ -14,21 +14,34 @@ export function ScrollyHero() {
 
 
 
-  // Title fades out very early to make room
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
-  const titleY = useTransform(scrollYProgress, [0, 0.1], [0, -50]);
+  // Stage 1: Title (0.0 -> 0.12)
+  const titleOpacity = useTransform(scrollYProgress, [0, 0.08, 0.15], [1, 1, 0]);
+  const titleY = useTransform(scrollYProgress, [0, 0.15], [0, -40]);
+  const titleScale = useTransform(scrollYProgress, [0, 0.15], [1, 0.95]);
 
-  // Stage 3 specific text overlays
-  const stage3Opacity = useTransform(scrollYProgress, [0.2, 0.3, 0.4, 0.5], [0, 1, 1, 0]);
-  const stage3Y = useTransform(scrollYProgress, [0.2, 0.3, 0.4, 0.5], [30, 0, 0, -30]);
+  // Stage 2: Narrative (0.2 -> 0.55)
+  const stage3Opacity = useTransform(scrollYProgress, [0.2, 0.3, 0.5, 0.6], [0, 1, 1, 0]);
+  const stage3Y = useTransform(scrollYProgress, [0.2, 0.3, 0.5, 0.6], [30, 0, 0, -30]);
+  const stage3Scale = useTransform(scrollYProgress, [0.2, 0.3, 0.5, 0.6], [0.95, 1, 1, 1.05]);
+
+  // Pointer events logic
+  const titlePointerEvents = useTransform(scrollYProgress, v => v < 0.15 ? 'auto' : 'none');
+  const stage3PointerEvents = useTransform(scrollYProgress, v => (v >= 0.2 && v < 0.6) ? 'auto' : 'none');
+
 
   return (
     <section ref={containerRef} className="relative w-full" style={{ height: "600vh", backgroundColor: "#1a1a18", color: "#f3f1ea" }}>
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
         {/* Stage 1 Title */}
         <motion.div 
-          style={{ opacity: titleOpacity, y: titleY }}
-          className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center pointer-events-none px-4"
+          style={{ 
+            opacity: titleOpacity, 
+            y: titleY, 
+            scale: titleScale,
+            pointerEvents: titlePointerEvents,
+            visibility: useTransform(scrollYProgress, v => v > 0.2 ? 'hidden' : 'visible') as any
+          }}
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-4"
         >
           <p className="text-xs font-semibold tracking-[0.22em] text-[#b9b4a8] mb-3 uppercase">
             Floriography
@@ -72,11 +85,17 @@ export function ScrollyHero() {
 
         {/* Stage 3 Narrative Overlay */}
         <motion.div 
-          style={{ opacity: stage3Opacity, y: stage3Y }}
-          className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-[15vh] text-center pointer-events-none px-4"
+          style={{ 
+            opacity: stage3Opacity, 
+            y: stage3Y,
+            scale: stage3Scale,
+            pointerEvents: stage3PointerEvents,
+            visibility: useTransform(scrollYProgress, v => (v < 0.15 || v > 0.65) ? 'hidden' : 'visible') as any
+          }}
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4"
         >
-           <h2 className="font-[family-name:var(--font-display)] text-xl sm:text-2xl tracking-[0.06em] text-[#f3f1ea] drop-shadow-md bg-black/40 backdrop-blur-md px-8 py-4 rounded-full border border-white/20">
-            每一片飄落的花瓣，都承載著未說出口的心意。
+          <h2 className="font-[family-name:var(--font-display)] text-xl sm:text-3xl tracking-[0.06em] text-[#f3f1ea] drop-shadow-2xl bg-black/40 backdrop-blur-xl px-12 py-8 rounded-[2rem] border border-white/20 max-w-sm sm:max-w-2xl leading-relaxed">
+            每一片飄落的花瓣，<br/>都承載著未說出口的心意。
           </h2>
         </motion.div>
 
@@ -88,13 +107,7 @@ export function ScrollyHero() {
         {/* Stage 5 Card Overlay */}
         <PressedFlowerCard scrollProgress={scrollYProgress} />
         
-        {/* Debug Overlay - Only visible during development to diagnose scroll */}
-        <div className="absolute top-4 right-4 z-50 bg-black/80 text-white p-4 rounded text-xs font-mono">
-          <p>Debug Info:</p>
-          <motion.p>
-            Scroll Progress: <motion.span>{useTransform(scrollYProgress, v => v.toFixed(3))}</motion.span>
-          </motion.p>
-        </div>
+
       </div>
     </section>
   );

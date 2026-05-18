@@ -14,6 +14,7 @@ const nav = [
   { href: "/floriography", label: "花語資料庫" },
   { href: "/recommend", label: "情境推薦" },
   { href: "/studio", label: "創作工作坊" },
+  { href: "/gallery", label: "花語牆" },
   { href: "/faq", label: "FAQ" },
 ];
 
@@ -69,8 +70,8 @@ export function SiteHeader() {
                 className={cn(
                   "rounded-full px-3 py-2 text-[13px] font-semibold tracking-wide transition-colors",
                   active
-                    ? "bg-black/5 dark:bg-white/10"
-                    : "hover:bg-black/5 dark:hover:bg-white/10"
+                    ? "text-black dark:text-white"
+                    : "text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/10"
                 )}
               >
                 {item.label}

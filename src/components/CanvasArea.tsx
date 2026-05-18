@@ -31,14 +31,14 @@ export const CanvasArea: React.FC = () => {
       const y = e.clientY - rect.top - 50;
       
       const newItem: CanvasItem = {
-        id: crypto.randomUUID(),
+        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         assetId: asset.id,
         asset,
         x,
         y,
         rotation: 0,
-        scaleX: 1,
-        scaleY: 1,
+        scaleX: 3.0,
+        scaleY: 3.0,
         zIndex: canvasItems.length + 1,
       };
 
@@ -60,7 +60,7 @@ export const CanvasArea: React.FC = () => {
         id="canvas-container" // For exporting
         ref={dropZoneRef}
         animate={{
-          scale: isCheckoutOpen ? 1.25 : 1,
+          scale: 1, // 強制固定為 1 以避免渲染時歪斜
           boxShadow: isCheckoutOpen ? '0 30px 60px rgba(92, 64, 51, 0.15)' : 'var(--shadow-lg)',
         }}
         transition={{ 
@@ -145,15 +145,17 @@ const CanvasItemComponent: React.FC<{ item: CanvasItem, isSelected: boolean }> =
         style={{
           ...styles.canvasItem,
           zIndex: item.zIndex,
-          backgroundColor: isSelected ? 'rgba(139, 90, 43, 0.05)' : 'transparent',
-          border: isSelected ? '1px dashed rgba(139, 90, 43, 0.1)' : 'none',
-          // Override dimensions for text to fit content
+          // 移除原本會干擾工具計算的邊框樣式
           width: item.asset.type === 'text' ? 'auto' : styles.canvasItem.width,
           height: item.asset.type === 'text' ? 'auto' : styles.canvasItem.height,
           padding: item.asset.type === 'text' ? '4px 8px' : 0,
-          pointerEvents: isEditing ? 'auto' : 'auto', // Ensure clicks work
+          cursor: item.locked ? 'default' : 'pointer',
         }}
-        onClick={handleClick}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          setSelectedItem(item.id);
+        }}
+        onClick={(e) => e.stopPropagation()}
         onDoubleClick={handleDoubleClick}
       >
         {item.asset.type === 'text' ? (

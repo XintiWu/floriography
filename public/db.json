@@ -5965,17 +5965,17 @@
       "name": "復古羊皮紙",
       "type": "card",
       "url": "/images/cards/vintage_parchment.png",
-      "price": 45,
-      "tags": ["texture", "vintage", "parchment"],
-      "description": "經典的復古羊皮紙質感，歲月沉澱的色澤為您的心意增添份量。"
+      "price": 40,
+      "tags": ["vintage", "parchment", "classic"],
+      "description": "經典的羊皮紙質地，賦予卡片歷史感與溫暖溫度。"
     },
     {
-      "name": "柔軟亞麻紋理",
+      "name": "亞麻布紋",
       "type": "card",
       "url": "/images/cards/linen_texture.png",
       "price": 40,
-      "tags": ["texture", "fabric", "linen"],
-      "description": "細緻的白色亞麻布紋理，清爽乾淨且充滿高級質感。"
+      "tags": ["texture", "linen", "natural"],
+      "description": "細緻的亞麻布紋理，展現自然素雅的高級質感。"
     }
   ]
 }

@@ -2,14 +2,16 @@
 
 import React, { useState } from 'react';
 import { useEditorState } from '../store/useEditorState';
-import { Download, Info, Leaf, ArrowLeft } from 'lucide-react';
+import { Download, Info, Leaf, ArrowLeft, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
+import { DigitalCardOverlay } from './DigitalCardOverlay';
 
 export const TopBar: React.FC = () => {
   const router = useRouter();
   const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen } = useEditorState();
   const [isHovering, setIsHovering] = useState(false);
+  const [isDigitalCardOpen, setIsDigitalCardOpen] = useState(false);
   const totalPrice = getTotalPrice();
   const usedAssets = getUsedAssets();
 
@@ -53,6 +55,15 @@ export const TopBar: React.FC = () => {
       </div>
 
       <div style={styles.actions}>
+        <button
+          style={styles.digitalCardBtn}
+          onClick={() => setIsDigitalCardOpen(true)}
+          disabled={!cardBackground && canvasItems.length === 0}
+        >
+          <Sparkles size={16} />
+          數位賀卡
+        </button>
+
         <button 
           style={styles.exportBtn}
           onClick={handleExport}
@@ -104,6 +115,11 @@ export const TopBar: React.FC = () => {
           )}
         </div>
       </div>
+
+      <DigitalCardOverlay
+        isOpen={isDigitalCardOpen}
+        onClose={() => setIsDigitalCardOpen(false)}
+      />
     </div>
   );
 };
@@ -164,6 +180,20 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     fontSize: '14px',
     transition: 'opacity 0.2s',
+  },
+  digitalCardBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 18px',
+    background: 'linear-gradient(135deg, #7c5c30, #b38240)',
+    color: '#FFF',
+    borderRadius: 'var(--radius-full)',
+    fontWeight: 600,
+    fontSize: '14px',
+    transition: 'all 0.2s',
+    boxShadow: '0 2px 12px rgba(130, 90, 40, 0.35)',
+    letterSpacing: '0.03em',
   },
   priceContainer: {
     position: 'relative',

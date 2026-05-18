@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 
 // 預設模擬素材庫
 const MOCK_BASES = [
+  { id: "base-kraft", name: "經典手感牛皮卡", price: 420, color: "#b38b59", desc: "經典復古質感，讓植物呈現最原始的生命力" },
   { id: "base-1", name: "晨霧經典白卡", price: 450, color: "#f8f9fa", desc: "細膩原生紙質，完美襯托植物鮮豔度" },
   { id: "base-2", name: "極夜曜黑卡", price: 480, color: "#1a1d20", desc: "高反差深色底板，適合淺色或燙金花材" },
   { id: "base-3", name: "溫潤燕麥卡", price: 460, color: "#f1ece4", desc: "柔和大地色系，復古溫暖手作質感" },
@@ -93,7 +94,7 @@ export function WorkshopStudio() {
       meaning: "高雅、美好、純潔的愛與友情",
       x: 50,
       y: 50,
-      scale: 1.0,
+      scale: 2.0,
       rotation: -15, // 給予一個自然的微傾斜
       zIndex: 1,
     },
@@ -311,16 +312,16 @@ export function WorkshopStudio() {
     ghost.style.position = "absolute";
     ghost.style.top = "-1000px";
     ghost.style.left = "-1000px";
-    ghost.style.width = "120px";
-    ghost.style.height = "120px";
+    ghost.style.width = "160px";
+    ghost.style.height = "160px";
     ghost.style.backgroundColor = "white"; 
-    ghost.style.borderRadius = "16px";
+    ghost.style.borderRadius = "20px";
     ghost.style.border = "1.5px solid #9c665c";
     ghost.style.display = "flex";
     ghost.style.flexDirection = "column";
     ghost.style.alignItems = "center";
     ghost.style.justifyContent = "center";
-    ghost.style.boxShadow = "0 10px 25px -5px rgba(0, 0, 0, 0.15)";
+    ghost.style.boxShadow = "0 10px 30px -5px rgba(0, 0, 0, 0.2)";
     ghost.style.overflow = "hidden";
     ghost.style.fontFamily = "system-ui, -apple-system, sans-serif";
 
@@ -343,15 +344,15 @@ export function WorkshopStudio() {
     if (item.image) {
       const img = new Image();
       img.src = item.image;
-      img.style.width = "75px";
-      img.style.height = "75px";
+      img.style.width = "110px";
+      img.style.height = "110px";
       img.style.objectFit = "contain";
       img.style.marginBottom = "10px";
       ghost.appendChild(img);
     } else if (item.symbol) {
       const span = document.createElement("span");
       span.innerText = item.symbol;
-      span.style.fontSize = "45px";
+      span.style.fontSize = "60px";
       span.style.marginBottom = "10px";
       ghost.appendChild(span);
     }
@@ -485,7 +486,7 @@ export function WorkshopStudio() {
       meaning: item.meaning,
       x: finalX,
       y: finalY,
-      scale: 1.0,
+      scale: 2.0,
       rotation: 0,
       zIndex: nextZ,
     };

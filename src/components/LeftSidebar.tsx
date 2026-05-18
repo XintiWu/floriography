@@ -25,10 +25,12 @@ export const LeftSidebar: React.FC = () => {
       setAssets(data);
       setLoading(false);
       
+      const kraftCard = data.find(a => a.type === 'card' && a.name === 'Kraft Brown');
       const firstCard = data.find(a => a.type === 'card');
       const currentBg = useEditorState.getState().cardBackground;
-      if (firstCard && !currentBg) {
-        setCardBackground(firstCard);
+      
+      if (!currentBg) {
+        setCardBackground(kraftCard || firstCard || null);
       }
     };
     loadAssets();
@@ -83,6 +85,22 @@ export const LeftSidebar: React.FC = () => {
 
   const handleCardSelect = (asset: Asset) => {
     setCardBackground(asset);
+  };
+
+  const handleFlowerClick = (asset: Asset) => {
+    const newItem: CanvasItem = {
+      id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      assetId: asset.id,
+      asset,
+      x: 175, // Center roughly (canvas is 450px wide, minus 100px item width)
+      y: 250, // Center roughly (canvas is 600px high)
+      rotation: 0,
+      scaleX: 3.0,
+      scaleY: 3.0,
+      zIndex: useEditorState.getState().canvasItems.length + 1,
+    };
+    useEditorState.getState().addItem(newItem);
+    useEditorState.getState().setSelectedItem(newItem.id);
   };
 
   const handleAddText = () => {
@@ -241,7 +259,10 @@ export const LeftSidebar: React.FC = () => {
                 className="asset-card-hover"
                 draggable={asset.type === 'flower'}
                 onDragStart={(e) => handleDragStart(e, asset)}
-                onClick={() => asset.type === 'card' && handleCardSelect(asset)}
+                onClick={() => {
+                  if (asset.type === 'card') handleCardSelect(asset);
+                  if (asset.type === 'flower') handleFlowerClick(asset);
+                }}
                 onMouseEnter={(e) => handleMouseEnter(e, asset)}
                 onMouseLeave={handleMouseLeave}
               >
