@@ -42,7 +42,6 @@ next-env.d.ts
 
 # local data
 /FlowerDB/
-/public/images/
 
 # SSH Keys
 keys/

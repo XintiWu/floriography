@@ -17,12 +17,14 @@ fi
 
 echo "🚀 開始部署到 OCI 伺服器 ($SERVER_IP)..."
 
-# 1. 同步檔案到伺服器 (排除不需要的檔案)
+# 1. 同步檔案到伺服器 (排除不需要的檔案，並自動同步刪除遠端已不存在的檔案)
 echo "📦 同步檔案中..."
-rsync -avz --exclude 'node_modules' \
+rsync -avz --delete \
+      --exclude 'node_modules' \
       --exclude '.next' \
       --exclude '.git' \
       --exclude '.env.local' \
+      --exclude 'supabase' \
       --exclude 'keys' \
       -e "ssh -i $KEY_PATH" \
       ./ $SERVER_USER@$SERVER_IP:$REMOTE_DIR
@@ -37,8 +39,8 @@ ssh -i $KEY_PATH $SERVER_USER@$SERVER_IP << EOF
     npm install
     # 執行構建
     npm run build
-    # 重啟 PM2 服務 (假設服務名稱為 floriography)
-    pm2 restart floriography || pm2 start npm --name "floriography" -- start
+    # 重啟 PM2 服務 (指定工作目錄)
+    pm2 restart floriography || pm2 start npm --name "floriography" --cwd "$REMOTE_DIR" -- run start
     echo "✅ 伺服器端更新完成！"
 EOF
 
