@@ -86,7 +86,7 @@ export function RecommendForm() {
   };
 
   const inputClass =
-    "h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all";
+    "h-11 w-full border border-[color:var(--line)] bg-[color:var(--card)] px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all";
 
   // 若產生了結果，隱藏 Input form，展示媲美 NFT 平台風格的高光作品陣列
   if (results.length > 0) {
@@ -96,11 +96,11 @@ export function RecommendForm() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[color:var(--line)] pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[color:var(--accent)]/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
+              <span className="bg-[color:var(--accent)]/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
                 AI 智能解析完畢
               </span>
               {engine && (
-                <span className="rounded-full bg-[color:var(--ink)] px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[color:var(--paper)] shadow-sm">
+                <span className="bg-[color:var(--ink)] px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[color:var(--paper)] shadow-sm">
                   ⚡ {engine}
                 </span>
               )}
@@ -115,7 +115,7 @@ export function RecommendForm() {
 
           <button
             onClick={() => setResults([])}
-            className="h-10 px-4 rounded-full border border-[color:var(--line)] bg-[color:var(--card)]/80 text-xs font-semibold tracking-wide text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5 transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0 shadow-sm"
+            className="h-10 px-4 border border-[color:var(--line)] bg-[color:var(--card)]/80 text-xs font-semibold tracking-wide text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-black/5 dark:hover:bg-white/5 transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0 shadow-sm"
           >
             <span>←</span>
             <span>修改送禮需求 / 回到上一步</span>
@@ -131,7 +131,7 @@ export function RecommendForm() {
             return (
               <div
                 key={r.card.id}
-                className={`group relative rounded-3xl p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
+                className={`group relative p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
                   isHighlyRecommended
                     ? "border-2 border-[color:var(--accent)] shadow-md shadow-[color:var(--accent)]/5"
                     : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
@@ -139,7 +139,7 @@ export function RecommendForm() {
               >
                 {/* 最佳適性推薦 Badge */}
                 {isHighlyRecommended && (
-                  <div className="absolute -top-3 left-6 rounded-full bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
+                  <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
                     ⭐ 最佳心意首選
                   </div>
                 )}
@@ -147,7 +147,7 @@ export function RecommendForm() {
                 {/* 上方調性標記列 */}
                 <div className="flex items-center justify-between gap-2 border-b border-[color:var(--line)]/60 pb-3 mb-4 pt-1">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-[color:var(--accent)]/10 border border-[color:var(--accent)]/30 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent)]">
+                    <div className="w-6 h-6 bg-[color:var(--accent)]/10 border border-[color:var(--accent)]/30 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent)]">
                       ❀
                     </div>
                     <div>
@@ -171,7 +171,7 @@ export function RecommendForm() {
                 </div>
 
                 {/* 卡片主視覺預覽區 */}
-                <div className="relative w-full aspect-[4/3] rounded-2xl bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] border border-[color:var(--line)] overflow-hidden mb-4 group-hover:shadow-inner transition-all flex flex-col items-center justify-center p-4">
+                <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] border border-[color:var(--line)] overflow-hidden mb-4 group-hover:shadow-inner transition-all flex flex-col items-center justify-center p-4">
                   <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:16px_16px]" />
                   <div className="absolute -left-10 -top-10 w-32 h-32 rounded-full bg-[color:var(--accent-2)]/5 blur-xl" />
                   
@@ -182,13 +182,13 @@ export function RecommendForm() {
                     {r.card.size ?? "純手工植物標本創作"}
                   </p>
 
-                  <span className="absolute bottom-2 left-2 rounded-lg bg-[color:var(--card)]/90 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] border border-[color:var(--line)]">
+                  <span className="absolute bottom-2 left-2 bg-[color:var(--card)]/90 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] border border-[color:var(--line)]">
                     #{r.card.tags.moods[0] ?? "祝福"}
                   </span>
                 </div>
 
                 {/* AI 顧問專屬生成的繁體中文理由區塊 */}
-                <div className="mb-4 rounded-2xl bg-[color:var(--background)]/60 p-3.5 border border-[color:var(--line)]/50 grow">
+                <div className="mb-4 bg-[color:var(--background)]/60 p-3.5 border border-[color:var(--line)]/50 grow">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-[11px]">💡</span>
                     <span className="text-[11px] font-bold text-[color:var(--foreground)]/80 tracking-wider">
@@ -202,7 +202,7 @@ export function RecommendForm() {
 
                 {/* 動態內嵌展開的作品完整規格詳情 (不跳出頁面) */}
                 {expandedCardId === r.card.id && (
-                  <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 rounded-2xl p-3 border border-[color:var(--line)]/40">
+                  <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
                     <div>
                       <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
                         作品設計理念 / 故事介紹
@@ -235,7 +235,7 @@ export function RecommendForm() {
                           {r.card.tags.colors.map((c) => (
                             <span
                               key={c}
-                              className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
+                              className="bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
                             >
                               {c}
                             </span>
@@ -268,7 +268,7 @@ export function RecommendForm() {
                       e.stopPropagation();
                       setExpandedCardId((s) => (s === r.card.id ? null : r.card.id));
                     }}
-                    className={`h-10 rounded-xl border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
+                    className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
                       expandedCardId === r.card.id
                         ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
                         : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
@@ -280,7 +280,7 @@ export function RecommendForm() {
                   <Link
                     href={`/reserve?cardId=${encodeURIComponent(r.card.id)}`}
                     onClick={(e) => e.stopPropagation()}
-                    className={`h-10 rounded-xl text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
+                    className={`h-10 text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
                       isHighlyRecommended
                         ? "bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)]/90 shadow-sm shadow-[color:var(--accent)]/20"
                         : "bg-[color:var(--ink)] text-[color:var(--paper)] hover:bg-black/85"
@@ -295,7 +295,7 @@ export function RecommendForm() {
         </div>
 
         {/* 底部聯絡資訊與回退列 */}
-        <div className="mt-4 rounded-3xl border border-[color:var(--line)]/60 bg-[color:var(--card)]/40 p-5 text-center">
+        <div className="mt-4 border border-[color:var(--line)]/60 bg-[color:var(--card)]/40 p-5 text-center">
           <p className="text-xs text-[color:var(--muted)]">
             找不到符合期待的專屬作品嗎？歡迎嘗試{" "}
             <button
@@ -314,12 +314,12 @@ export function RecommendForm() {
   // 預設展示的 Input form (當處於未推論或重新填寫狀態時)
   return (
     <div className="max-w-2xl mx-auto w-full animate-fade-in">
-      <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 hover:border-[color:var(--accent-2)]/40 shadow-sm">
+      <div className="border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 hover:border-[color:var(--accent-2)]/40 shadow-sm">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
             STORY INPUT
           </p>
-          <span className="rounded-full bg-[color:var(--accent)]/10 px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--accent)] tracking-wider">
+          <span className="bg-[color:var(--accent)]/10 px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--accent)] tracking-wider">
             Step 1 / 語意填寫
           </span>
         </div>
@@ -330,7 +330,7 @@ export function RecommendForm() {
               送禮情境自由描述 <span className="text-[11px] text-[color:var(--muted)] font-normal">(建議包含對象、故事或心願)</span>
             </span>
             <textarea
-              className="min-h-[140px] w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] resize-none transition-all leading-relaxed"
+              className="min-h-[140px] w-full border border-[color:var(--line)] bg-[color:var(--card)] p-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] resize-none transition-all leading-relaxed"
               value={form.story ?? ""}
               onChange={(e) =>
                 setForm((s) => ({ ...s, story: e.target.value }))
@@ -440,7 +440,7 @@ export function RecommendForm() {
           {/* 底部按鈕列與等待狀態 */}
           <div className="pt-3 border-t border-[color:var(--line)]/60 mt-2">
             {loading ? (
-              <div className="rounded-2xl border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/5 p-6 text-center transition-all animate-pulse">
+              <div className="border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/5 p-6 text-center transition-all animate-pulse">
                 <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[color:var(--accent)] border-t-transparent mb-3" />
                 <p className="text-sm font-bold tracking-wide text-[color:var(--accent)]">
                   正在調閱花語辭典...
@@ -459,7 +459,7 @@ export function RecommendForm() {
                   size="lg"
                   onClick={recommend}
                   disabled={!canRecommend || loading}
-                  className="w-full sm:w-auto order-1 sm:order-2 shrink-0"
+                  className="w-full sm:w-auto order-1 sm:order-2 shrink-0 rounded-none"
                 >
                   探索專屬推薦
                 </Button>

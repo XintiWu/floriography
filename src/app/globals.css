@@ -13,7 +13,7 @@
   --foreground: var(--ink);
 }
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-body: var(--font-raleway), var(--font-noto-serif-tc), sans-serif;
