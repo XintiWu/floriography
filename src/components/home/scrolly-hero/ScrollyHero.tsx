@@ -46,10 +46,10 @@ export function ScrollyHero() {
           <p className="text-xs font-semibold tracking-[0.22em] text-[#b9b4a8] mb-3 uppercase">
             Floriography
           </p>
-          <h1 className="font-[family-name:var(--font-cormorant),var(--font-noto-serif-tc),serif] text-4xl sm:text-6xl tracking-[0.06em] text-[#f3f1ea] mb-6 drop-shadow-md">
+          <h1 className="font-[family-name:var(--font-cormorant),var(--font-noto-sans-tc),sans-serif] text-4xl sm:text-6xl tracking-[0.06em] text-[#f3f1ea] mb-6 drop-shadow-md">
             花語未盡
           </h1>
-          <p className="font-[family-name:var(--font-noto-serif-tc),serif] text-sm tracking-wide text-[#b9b4a8] max-w-md mx-auto leading-relaxed drop-shadow-sm">
+          <p className="font-[family-name:var(--font-noto-sans-tc),sans-serif] text-sm tracking-wide text-[#b9b4a8] max-w-md mx-auto leading-relaxed drop-shadow-sm">
             手作情感的數位延續<br/>Translating Handmade Emotions into Digital Experiences
           </p>
 
@@ -94,7 +94,7 @@ export function ScrollyHero() {
           }}
           className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4"
         >
-          <h2 className="font-[family-name:var(--font-cormorant),var(--font-noto-serif-tc),serif] text-xl sm:text-3xl tracking-[0.06em] text-[#f3f1ea] drop-shadow-2xl bg-black/40 backdrop-blur-xl px-12 py-8 rounded-[2rem] border border-white/20 max-w-sm sm:max-w-2xl leading-relaxed">
+          <h2 className="font-[family-name:var(--font-cormorant),var(--font-noto-sans-tc),sans-serif] text-xl sm:text-3xl tracking-[0.06em] text-[#f3f1ea] drop-shadow-2xl bg-black/40 backdrop-blur-xl px-12 py-8 rounded-[2rem] border border-white/20 max-w-sm sm:max-w-2xl leading-relaxed">
             每一片飄落的花瓣，<br/>都承載著未說出口的心意。
           </h2>
         </motion.div>

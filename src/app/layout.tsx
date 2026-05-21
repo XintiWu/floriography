@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EB_Garamond, Raleway, Noto_Serif_TC, Cormorant_Garamond } from "next/font/google";
+import { EB_Garamond, Raleway, Noto_Sans_TC, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -20,10 +20,10 @@ const raleway = Raleway({
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const notoSerifTC = Noto_Serif_TC({
-  variable: "--font-noto-serif-tc",
-  subsets: ["latin"], // Note: Noto Serif TC subset is typically handled automatically, keeping 'latin' to match Next.js defaults if needed, though 'latin' might be ignored for CJK.
-  weight: ["300", "400", "500", "600", "700"],
+const notoSansTC = Noto_Sans_TC({
+  variable: "--font-noto-sans-tc",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
 });
 
 export const metadata: Metadata = {
@@ -44,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-Hant"
-      className={`${ebGaramond.variable} ${raleway.variable} ${notoSerifTC.variable} ${cormorant.variable} antialiased`}
+      className={`${ebGaramond.variable} ${raleway.variable} ${notoSansTC.variable} ${cormorant.variable} antialiased`}
     >
       <body className="min-h-screen flex flex-col grain">
         {children}
