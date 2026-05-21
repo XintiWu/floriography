@@ -10,9 +10,9 @@ export function FloatingBotanicals({ scrollProgress }: { scrollProgress: MotionV
   const groupRef = useRef<THREE.Group>(null);
   
   const textures = useTexture([
-    "/images/botanical/botanical_1_1777573303466.png",
-    "/images/botanical/botanical_2_1777573317449.png",
-    "/images/botanical/botanical_3_1777573330011.png"
+    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_1_1777573303466.png",
+    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_2_1777573317449.png",
+    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_3_1777573330011.png"
   ]);
 
   textures.forEach(t => {

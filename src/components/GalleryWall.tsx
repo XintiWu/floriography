@@ -7,6 +7,13 @@ import { ArrowRight, Share2, Check, Heart, MessageCircle, Flower2, Eye, Clock } 
 import { Container } from "@/components/Container";
 import { getDisplayCardTitle } from "@/lib/galleryDisplay";
 
+interface Comment {
+  id: string;
+  author_name: string;
+  text: string;
+  created_at: string;
+}
+
 interface SharedCard {
   id: string;
   image_data: string;
@@ -18,6 +25,8 @@ interface SharedCard {
   author_name: string;
   view_count: number;
   created_at: string;
+  like_count?: number;
+  comments?: Comment[];
 }
 
 function timeAgo(dateStr: string): string {
@@ -85,6 +94,10 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
       setLikesCount((prev) => prev + 1);
     }
   };
+
+  // Social interactive states
+  const [likes, setLikes] = useState(card.like_count || 0);
+  const [hasLiked, setHasLiked] = useState(false);
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -240,16 +253,39 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
 export function GalleryWall() {
   const [cards, setCards] = useState<SharedCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const LIMIT = 12;
 
   useEffect(() => {
-    fetch("/api/cards")
+    fetch(`/api/cards?limit=${LIMIT}&offset=0`)
       .then((r) => r.json())
       .then((data) => {
         setCards(data.cards || []);
+        setHasMore((data.cards || []).length === LIMIT);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleLoadMore = () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextOffset = offset + LIMIT;
+
+    fetch(`/api/cards?limit=${LIMIT}&offset=${nextOffset}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const newCards = data.cards || [];
+        setCards((prev) => [...prev, ...newCards]);
+        setOffset(nextOffset);
+        setHasMore(newCards.length === LIMIT);
+        setLoadingMore(false);
+      })
+      .catch(() => setLoadingMore(false));
+  };
 
   return (
     <div className="min-h-screen bg-[color:var(--background)] pb-20">
