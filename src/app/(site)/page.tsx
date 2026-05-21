@@ -9,14 +9,14 @@ export default async function Home() {
     <main className="flex flex-1 flex-col">
       <ScrollyHero />
 
-      <section className="py-14 sm:py-16">
+      <section className="py-24 sm:py-32">
         <Container>
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
+              <p className="text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
                 NEW & HIGHLIGHTS
               </p>
-              <h2 className="mt-3 font-[family-name:var(--font-display)] text-2xl tracking-[0.06em] sm:text-3xl">
+              <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
                 最新作品
               </h2>
             </div>
@@ -28,12 +28,12 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {cards.slice(0, 3).map((card) => (
               <Link
                 key={card.id}
                 href={`/cards/${card.id}`}
-                className="group rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-5 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="group bg-[color:var(--card)] p-8 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -48,14 +48,14 @@ export default async function Home() {
                           : "可客製委託"}
                     </p>
                   </div>
-                  <span className="rounded-full border border-[color:var(--line)] px-2 py-1 text-[11px] text-[color:var(--muted)]">
+                  <span className="border border-[color:var(--line)] px-3 py-1.5 text-[10px] tracking-widest uppercase text-[color:var(--muted)]">
                     {card.tags.moods[0] ?? "心意"}
                   </span>
                 </div>
-                <p className="mt-4 text-sm leading-7 text-[color:var(--muted)]">
+                <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)]">
                   {card.blurb}
                 </p>
-                <p className="mt-5 text-xs font-semibold tracking-[0.22em] text-[color:var(--accent)]">
+                <p className="mt-8 text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--accent)]">
                   OPEN →
                 </p>
               </Link>
@@ -64,21 +64,21 @@ export default async function Home() {
         </Container>
       </section>
 
-      <section className="border-t border-[color:var(--line)] py-14 sm:py-16">
+      <section className="border-t border-[color:var(--line)] py-24 sm:py-32">
         <Container>
-          <div className="grid gap-6 md:grid-cols-12 md:items-start">
+          <div className="grid gap-12 md:grid-cols-12 md:items-start">
             <div className="md:col-span-5">
-              <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
+              <p className="text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
                 HOW IT WORKS
               </p>
-              <h2 className="mt-3 font-[family-name:var(--font-display)] text-2xl tracking-[0.06em] sm:text-3xl">
+              <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
                 面交/自取三步驟
               </h2>
-              <p className="mt-4 text-sm leading-7 text-[color:var(--muted)]">
+              <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)]">
                 先挑作品（或提出客製需求），再填表留下聯絡方式與想要的面交時段，我們會與你確認細節。
               </p>
             </div>
-            <ol className="grid gap-3 md:col-span-7">
+            <ol className="grid md:col-span-7">
               {[
                 ["挑作品", "逛藝廊或用情境推薦，快速鎖定想說的心意。"],
                 ["填需求", "留下 LINE/電話、預算、時間與地點偏好。"],
@@ -86,15 +86,15 @@ export default async function Home() {
               ].map(([title, desc], idx) => (
                 <li
                   key={title}
-                  className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-5"
+                  className="border-t border-[color:var(--line)] py-8 first:border-t-0 first:pt-0"
                 >
-                  <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
+                  <p className="text-[10px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
                     STEP {idx + 1}
                   </p>
-                  <p className="mt-2 text-sm font-semibold tracking-wide">
+                  <p className="mt-3 text-base font-semibold tracking-wide">
                     {title}
                   </p>
-                  <p className="mt-2 text-sm leading-7 text-[color:var(--muted)]">
+                  <p className="mt-2 text-sm leading-relaxed text-[color:var(--muted)]">
                     {desc}
                   </p>
                 </li>

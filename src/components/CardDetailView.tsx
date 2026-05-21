@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Eye, ArrowLeft, Flower2, Copy, Check, Share2 } from "lucide-react";
 import Link from "next/link";
+import { getDisplayCardTitle } from "@/lib/galleryDisplay";
 
 interface CardData {
   id: string;
@@ -61,15 +62,21 @@ function timeAgo(dateStr: string): string {
 
 export function CardDetailView({ cardId }: { cardId: string }) {
   const [card, setCard] = useState<CardData | null>(null);
+  const [feedIndex, setFeedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [petals] = useState(() => generatePetals(18));
   const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/cards/${cardId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCard(data.card || null);
+    Promise.all([
+      fetch(`/api/cards/${cardId}`).then((r) => r.json()),
+      fetch("/api/cards").then((r) => r.json()),
+    ])
+      .then(([detail, list]) => {
+        const cards = list.cards || [];
+        const idx = cards.findIndex((c: { id: string }) => c.id === cardId);
+        setFeedIndex(idx >= 0 ? idx : 0);
+        setCard(detail.card || null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -82,7 +89,8 @@ export function CardDetailView({ cardId }: { cardId: string }) {
     setTimeout(() => setLinkCopied(false), 2500);
   };
 
-  // Build paired flower meanings
+  const displayTitle = card ? getDisplayCardTitle(card, feedIndex) : "";
+
   const flowerPairs = card
     ? (card.flower_names || []).map((name, idx) => ({
         name,
@@ -299,7 +307,7 @@ export function CardDetailView({ cardId }: { cardId: string }) {
             </motion.div>
 
             {/* Card title */}
-            {card.card_title && (
+            {displayTitle && (
               <motion.h1
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -315,7 +323,7 @@ export function CardDetailView({ cardId }: { cardId: string }) {
                   lineHeight: 1.4,
                 }}
               >
-                {card.card_title}
+                {displayTitle}
               </motion.h1>
             )}
 
