@@ -6,44 +6,96 @@ type RecognitionResult = {
   engine: string;
 };
 
-// 嘗試呼叫外部辨識服務，若未設定則回傳模擬結果
-export async function recognizeFlowerFromBuffer(buf: Buffer): Promise<RecognitionResult> {
-  const apiUrl = process.env.FLOWER_RECOGNITION_API_URL;
-  const apiKey = process.env.FLOWER_RECOGNITION_API_KEY;
+// 使用 Gemini Vision API 辨識花朵，若無 API Key 則回傳模擬結果
+export async function recognizeFlowerFromBuffer(
+  buf: Buffer
+): Promise<RecognitionResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  if (apiUrl) {
+  if (apiKey) {
     try {
-      const form = new FormData();
-      // Buffer 在 TS 中未直接被視為 ArrayBufferView，將其包成 Uint8Array 可滿足 BlobPart 的型別
-      form.append("image", new Blob([new Uint8Array(buf)]), "upload.jpg");
+      const base64 = buf.toString("base64");
 
-      const headers: Record<string, string> = {};
-      if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers,
-        body: form as any,
-      });
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text:
+                      '請仔細觀察這張圖片中的花朵，只回傳一個花朵名稱（繁體中文）與信心值（0-1）。' +
+                      '回傳 JSON 格式：{"name":"花名","confidence":0.95}。' +
+                      '若圖片不含花朵，回傳 {"name":"","confidence":0.0}',
+                  },
+                  {
+                    inline_data: {
+                      mime_type: "image/jpeg",
+                      data: base64,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.3,
+            },
+          }),
+        }
+      );
 
       if (res.ok) {
         const data = await res.json();
-        // 期望外部 API 回傳 { name: "玫瑰", confidence: 0.92 }
-        if (data?.name) {
-          return {
-            name: String(data.name),
-            confidence: typeof data.confidence === "number" ? data.confidence : 0.8,
-            engine: `external:${apiUrl}`,
-          };
+
+        const textContent =
+          data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (textContent) {
+          try {
+            const cleaned = textContent
+              .replace(/```json\s*/i, "")
+              .replace(/```/g, "")
+              .trim();
+
+            const parsed = JSON.parse(cleaned);
+
+            if (parsed?.name) {
+              return {
+                name: parsed.name,
+                confidence: Math.max(
+                  0,
+                  Math.min(
+                    1,
+                    typeof parsed.confidence === "number"
+                      ? parsed.confidence
+                      : 0.8
+                  )
+                ),
+                engine: "gemini:2.5-flash",
+              };
+            }
+          } catch (e) {
+            console.warn("Failed to parse Gemini JSON", textContent);
+          }
         }
+      } else {
+        const err = await res.text();
+        console.warn("Gemini API error:", res.status, err);
       }
     } catch (err) {
-      console.warn("Flower recognition external API failed", err);
+      console.warn("Gemini recognition failed:", err);
     }
   }
 
-  // fallback: 從 sampleFlowers 隨機挑一個當作模擬辨識結果
-  const pick = sampleFlowers[Math.floor(Math.random() * sampleFlowers.length)];
+  // fallback
+  const pick =
+    sampleFlowers[Math.floor(Math.random() * sampleFlowers.length)];
+
   return {
     name: pick.name,
     confidence: 0.7 + Math.random() * 0.25,

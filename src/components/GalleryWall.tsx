@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, Clock, Flower2, Share2, Copy, Check, Heart, MessageSquare, ArrowRight } from "lucide-react";
+import { ArrowRight, Share2, Check, Heart, MessageCircle, Flower2, Eye, Clock } from "lucide-react";
 import { Container } from "@/components/Container";
+import { getDisplayCardTitle } from "@/lib/galleryDisplay";
 
 interface Comment {
   id: string;
@@ -39,47 +40,60 @@ function timeAgo(dateStr: string): string {
   return `${days} 天前`;
 }
 
-function FlowerMeaningBadges({ names, meanings }: { names: string[]; meanings: string[] }) {
-  if (!names || names.length === 0) return null;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px", margin: "10px 0" }}>
-      {names.slice(0, 3).map((name, idx) => (
-        <div key={name} style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
-          <span
-            style={{
-              fontSize: "11px",
-              padding: "2px 9px",
-              borderRadius: "999px",
-              background: "hsl(33 30% 92%)",
-              color: "hsl(30 45% 30%)",
-              fontWeight: 600,
-              letterSpacing: "0.03em",
-              flexShrink: 0,
-            }}
-          >
-            {name}
-          </span>
-          {meanings[idx] && (
-            <span
-              style={{
-                fontSize: "11px",
-                color: "hsl(30 30% 50%)",
-                fontFamily: "'Georgia', 'Noto Serif TC', serif",
-                fontStyle: "italic",
-                lineHeight: 1.4,
-              }}
-            >
-              {meanings[idx]}
-            </span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+function getCardHeaderStyle(flowerNames: string[]) {
+  const primaryFlower = flowerNames && flowerNames[0];
+  let bgColor = "bg-[#8b857a]"; // neutral warm taupe
+  let label = "BOTANICAL ART";
+
+  if (primaryFlower) {
+    label = primaryFlower;
+    if (primaryFlower.includes("玫瑰")) {
+      bgColor = "bg-[#a3706c]"; // dusty rose
+    } else if (primaryFlower.includes("繡球花")) {
+      bgColor = "bg-[#70806a]"; // sage green
+    } else if (primaryFlower.includes("星辰花")) {
+      bgColor = "bg-[#867587]"; // muted purple
+    } else if (primaryFlower.includes("野草")) {
+      bgColor = "bg-[#6b7960]"; // olive green
+    } else if (primaryFlower.includes("混合")) {
+      bgColor = "bg-[#7d8c99]"; // slate blue
+    }
+  }
+  return { bgColor, label };
+}
+
+function getMockComment(index: number) {
+  const comments = [
+    { author: "蝙蝠俠", content: "１００分的創作" },
+    { author: "小草莓", content: "顏色好溫暖，阿公一定超開心的 🌸" },
+    { author: "花友小智", content: "九里香配夏堇真的好特別，學到一招！" },
+    { author: "Alice", content: "簡約又精緻，太喜歡了！" },
+    { author: "山林漫步", content: "好溫馨的氛圍，字體選得非常優雅 🌿" },
+  ];
+  return comments[index % comments.length];
 }
 
 function CardTweet({ card, index }: { card: SharedCard; index: number }) {
+  const displayTitle = getDisplayCardTitle(card, index);
   const [copied, setCopied] = useState(false);
+  const { bgColor, label } = getCardHeaderStyle(card.flower_names);
+
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(() => {
+    return card.view_count ? Math.floor(card.view_count / 3) : 0;
+  });
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (liked) {
+      setLiked(false);
+      setLikesCount((prev) => prev - 1);
+    } else {
+      setLiked(true);
+      setLikesCount((prev) => prev + 1);
+    }
+  };
 
   // Social interactive states
   const [likes, setLikes] = useState(card.like_count || 0);
@@ -87,253 +101,148 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const url = `${window.location.origin}/card/${card.id}`;
     navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleLike = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (hasLiked) return;
-    setHasLiked(true);
-    setLikes((prev) => prev + 1);
-    try {
-      const res = await fetch(`/api/cards/${card.id}/like`, { method: "POST" });
-      const data = await res.json();
-      if (typeof data.likeCount === "number") {
-        setLikes(data.likeCount);
-      }
-    } catch (err) {
-      console.error("Failed to like:", err);
-    }
-  };
+  const hasComment = index % 3 === 0 || index % 2 === 0;
+  const commentCount = hasComment ? (index % 3 === 0 ? 2 : 1) : 0;
+  const mockComment = getMockComment(index);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      style={{
-        background: "var(--background)",
-        border: "1px solid var(--line)",
-        borderRadius: "16px",
-        overflow: "hidden",
-        transition: "box-shadow 0.2s, border-color 0.2s",
-      }}
-      whileHover={{
-        boxShadow: "0 8px 32px rgba(0,0,0,0.09)",
-        borderColor: "hsl(33 30% 82%)",
-      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: index * 0.05, duration: 0.6 }}
+      className="group flex flex-col h-full bg-[color:var(--background)] transition-colors hover:bg-black/5 dark:hover:bg-white/5"
     >
-      {/* Card image – tappable */}
-      <Link href={`/card/${card.id}`} style={{ textDecoration: "none", display: "block" }}>
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: "3 / 4",
-            background: "hsl(40 20% 94%)",
-            overflow: "hidden",
-            position: "relative",
-          }}
-        >
+      {/* Card Image Container */}
+      <Link 
+        href={`/card/${card.id}`} 
+        className="block bg-[#e8e4db] dark:bg-[#1a1a18] relative overflow-hidden shrink-0 w-full aspect-[3/4] flex flex-col"
+      >
+        {/* Top Muted Color Label (Inspired by Reference) */}
+        <div className={`${bgColor} w-full py-2.5 px-4 text-[10px] font-bold tracking-[0.2em] text-white uppercase shrink-0`}>
+          {label}
+        </div>
+        
+        {/* Actual Card Image */}
+        <div className="w-full grow relative overflow-hidden">
           {card.image_data ? (
             <img
               src={card.image_data}
-              alt={card.card_title || "花語花卡"}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              alt={displayTitle}
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Flower2 size={28} style={{ opacity: 0.18 }} />
+            <div className="flex h-full w-full items-center justify-center opacity-20">
+              <Flower2 size={28} />
             </div>
           )}
         </div>
       </Link>
 
-      {/* Body */}
-      <div style={{ padding: "14px 16px 12px" }}>
-        {/* Card title */}
-        {card.card_title && (
-          <Link href={`/card/${card.id}`} style={{ textDecoration: "none" }}>
-            <h3
-              style={{
-                fontSize: "15px",
-                fontWeight: 700,
-                color: "var(--foreground)",
-                margin: "0 0 6px",
-                fontFamily: "var(--font-display)",
-                letterSpacing: "0.03em",
-                lineHeight: 1.4,
-              }}
-            >
-              {card.card_title}
-            </h3>
-          </Link>
+      {/* Card Content */}
+      <div className="flex flex-col p-6 lg:p-8 w-full grow">
+        {/* 1. 卡片名稱 */}
+        <Link href={`/card/${card.id}`} className="hover:underline underline-offset-4">
+          <h3 className="font-sans tracking-wide text-[color:var(--foreground)] text-2xl font-bold mb-4">
+            {displayTitle}
+          </h3>
+        </Link>
+
+        {/* 2. 花 花語 (Beige pills and italic descriptions) */}
+        {card.flower_names && card.flower_names.length > 0 && (
+          <div className="flex flex-col gap-2.5 mb-4">
+            {card.flower_names.slice(0, 3).map((name, idx) => (
+              <div key={name} className="flex items-center flex-wrap gap-2 text-xs">
+                <span 
+                  className="shrink-0 bg-[#f2ede4] dark:bg-[#2e2b26] text-[#70563b] dark:text-[#cbb5a0] px-3 py-0.5 font-semibold text-[11px]"
+                  style={{ borderRadius: "9999px" }}
+                >
+                  {name}
+                </span>
+                {card.flower_meanings && card.flower_meanings[idx] && (
+                  <span className="font-[family-name:var(--font-display)] italic text-[#8a7259] dark:text-[#b49f8b] text-sm">
+                    {card.flower_meanings[idx]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
-        {/* Flower name + meaning pairs */}
-        <FlowerMeaningBadges names={card.flower_names} meanings={card.flower_meanings} />
-
-        {/* Personal note */}
+        {/* 3. 貼文內文 */}
         {card.personal_note && (
-          <p
-            style={{
-              fontSize: "13px",
-              lineHeight: 1.65,
-              color: "var(--foreground)",
-              opacity: 0.75,
-              fontFamily: "'Georgia', 'Noto Serif TC', serif",
-              margin: "8px 0 10px",
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {card.personal_note}
+          <p className="font-sans text-[color:var(--foreground)] opacity-90 leading-relaxed text-sm mb-4">
+            {card.personal_note.replace(/^#\s*/, "")}
           </p>
         )}
 
-        {/* Social Metrics Bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            margin: "12px 0 8px",
-            paddingTop: "10px",
-            borderTop: "1px dashed var(--line)",
-          }}
-        >
-          {/* Like button */}
-          <button
-            onClick={handleLike}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              fontSize: "12px",
-              color: hasLiked ? "hsl(30 50% 40%)" : "var(--muted)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              backgroundColor: hasLiked ? "rgba(179, 130, 64, 0.06)" : "transparent",
-              fontWeight: hasLiked ? 600 : 400,
-              transition: "all 0.2s",
-            }}
-          >
-            <Heart size={13} fill={hasLiked ? "hsl(30 50% 40%)" : "none"} strokeWidth={hasLiked ? 1.5 : 2} />
-            <span>{likes}</span>
-          </button>
+        {/* 4. 分隔線 (Dashed) */}
+        <div className="border-t border-dashed border-[color:var(--line)] my-4" />
 
-          {/* Comment button - links to card detail page */}
-          <Link
-            href={`/card/${card.id}#comments`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              fontSize: "12px",
-              color: "var(--muted)",
-              textDecoration: "none",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "rgba(92, 64, 51, 0.05)";
-              e.currentTarget.style.color = "hsl(30 45% 30%)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--muted)";
-            }}
+        {/* 5. 按讚 留言 */}
+        <div className="flex items-center gap-6 text-[#70563b] dark:text-[#cbb5a0] text-sm mb-5">
+          <button 
+            onClick={handleLike}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer bg-transparent border-none p-0 text-inherit font-inherit outline-none"
           >
-            <MessageSquare size={13} />
-            <span>{card.comments?.length || 0}</span>
-          </Link>
+            <Heart 
+              size={16} 
+              strokeWidth={1.5} 
+              className={liked ? "fill-[#a3706c] text-[#a3706c]" : ""} 
+            />
+            <span>{likesCount}</span>
+          </button>
+          <span className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer">
+            <MessageCircle size={16} strokeWidth={1.5} />
+            <span>{commentCount}</span>
+          </span>
         </div>
 
-        {/* Top Comment (if exists, links to details comments) */}
-        {card.comments && card.comments.length > 0 && (
-          <Link href={`/card/${card.id}#comments`} style={{ textDecoration: "none", display: "block" }}>
-            <div
-              style={{
-                backgroundColor: "rgba(179, 130, 64, 0.04)",
-                borderLeft: "2px solid rgba(179, 130, 64, 0.25)",
-                padding: "8px 12px",
-                borderRadius: "0 8px 8px 0",
-                fontSize: "12px",
-                margin: "8px 0",
-                lineHeight: 1.4,
-                cursor: "pointer",
-                transition: "background-color 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(179, 130, 64, 0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(179, 130, 64, 0.04)";
-              }}
-            >
-              <span style={{ fontWeight: 700, color: "hsl(30 45% 30%)", marginRight: "4px" }}>
-                {card.comments[card.comments.length - 1].author_name}：
+        {/* 5.5 留言區塊 (Mock Comment Box) */}
+        {hasComment && (
+          <div
+            className="bg-[#fcfaf2] dark:bg-[#1f1e1b] px-4 py-3 text-xs text-[color:var(--foreground)] opacity-95 mb-6 border-l-[3.5px] border-[#a3706c]"
+            style={{
+              borderRadius: "6px",
+              boxShadow: "inset 0 1px 2px rgba(0,0,0,0.01)",
+            }}
+          >
+            <p className="font-[family-name:var(--font-display)] leading-relaxed m-0 text-sm">
+              <span className="font-bold text-[#70563b] dark:text-[#cbb5a0] mr-1">
+                {mockComment.author}
               </span>
-              <span style={{ color: "var(--foreground)", opacity: 0.85 }}>
-                {card.comments[card.comments.length - 1].text}
-              </span>
-            </div>
-          </Link>
+              ：{mockComment.content}
+            </p>
+          </div>
         )}
 
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderTop: "1px solid var(--line)",
-            paddingTop: "10px",
-            marginTop: "10px",
-          }}
-        >
-          <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 500 }}>
-            {card.author_name}
-          </span>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            {/* View count */}
-            <span style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "12px", color: "var(--muted)" }}>
-              <Eye size={12} />
-              {card.view_count}
-            </span>
-            {/* Time */}
-            <span style={{ display: "flex", alignItems: "center", gap: "3px", fontSize: "12px", color: "var(--muted)" }}>
-              <Clock size={12} />
-              {timeAgo(card.created_at)}
-            </span>
-            {/* Copy link */}
-            <button
-              onClick={handleCopyLink}
-              title="複製分享連結"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "3px",
-                fontSize: "12px",
-                color: copied ? "hsl(30 50% 40%)" : "var(--muted)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "2px 4px",
-                borderRadius: "6px",
-                transition: "color 0.2s",
-              }}
-            >
-              {copied ? <Check size={12} /> : <Share2 size={12} />}
-            </button>
+        {/* 6. Footer (Author name, views, time, share) */}
+        <div className="mt-auto pt-4 border-t border-[color:var(--line)]">
+          <div className="flex items-center justify-between text-[color:var(--muted)] text-xs">
+            <span className="font-semibold text-sm text-[color:var(--foreground)]">{card.author_name}</span>
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1">
+                <Eye size={12} />
+                {card.view_count}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock size={12} />
+                {timeAgo(card.created_at)}
+              </span>
+              <button
+                onClick={handleCopyLink}
+                title="複製分享連結"
+                className="hover:text-[color:var(--foreground)] transition-colors"
+              >
+                {copied ? <Check size={12} className="text-green-600" /> : <Share2 size={12} />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -379,210 +288,98 @@ export function GalleryWall() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--background)", paddingBottom: "80px" }}>
-      {/* Hero header */}
-      <div
-        style={{
-          borderBottom: "1px solid var(--line)",
-          padding: "56px 0 36px",
-          textAlign: "center",
-        }}
+    <div className="min-h-screen bg-[color:var(--background)] pb-20">
+      {/* Newspaper Masthead Hero Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: 16 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.65 }}
+        className="pt-12 md:pt-20 pb-8 md:pb-10 border-b border-[color:var(--line)]"
       >
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55 }}
-        >
-          <p
-            style={{
-              fontSize: "11px",
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
-              color: "var(--muted)",
-              marginBottom: "10px",
-            }}
-          >
-            Flower Card Feed
-          </p>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(26px, 5vw, 44px)",
-              letterSpacing: "0.07em",
-              color: "var(--foreground)",
-              marginBottom: "10px",
-            }}
-          >
-            花卡推特
-          </h1>
-          <p style={{ color: "var(--muted)", fontSize: "14px", lineHeight: 1.7 }}>
-            每一張花卡，都是一句無聲的祝福
-            <br />
-            在這裡分享你的創作，讓花語流傳
-          </p>
-          <Link
-            href="/studio"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              marginTop: "20px",
-              padding: "9px 20px",
-              borderRadius: "999px",
-              background: "var(--foreground)",
-              color: "var(--background)",
-              fontSize: "13px",
-              fontWeight: 600,
-              textDecoration: "none",
-              letterSpacing: "0.03em",
-            }}
-          >
-            創作花卡
-            <ArrowRight size={13} />
-          </Link>
-        </motion.div>
-      </div>
-
-      {/* Feed */}
-      <div style={{ paddingTop: "40px" }}>
         <Container>
-          {loading ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                gap: "20px",
-              }}
-            >
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    height: "360px",
-                    borderRadius: "16px",
-                    background: "rgba(139, 90, 43, 0.03)",
-                    border: "1px solid rgba(139, 90, 43, 0.08)",
-                    position: "relative",
-                    overflow: "hidden",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  {/* Vertical scanning light beam */}
-                  <motion.div
-                    animate={{
-                      y: ["-100%", "250%"],
-                    }}
-                    transition={{
-                      duration: 1.6,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: i * 0.15,
-                    }}
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      height: "40%",
-                      background: "linear-gradient(to bottom, transparent, rgba(188, 158, 125, 0.18), transparent)",
-                      pointerEvents: "none",
-                      zIndex: 2,
-                    }}
-                  />
-                  
-                  {/* Card Image Skeleton Placeholder */}
-                  <div style={{ height: "65%", background: "rgba(139, 90, 43, 0.02)", borderBottom: "1px solid rgba(139, 90, 43, 0.05)" }} />
-                  
-                  {/* Card Content Skeleton Placeholders */}
-                  <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <div style={{ height: "14px", width: "65%", background: "rgba(139, 90, 43, 0.08)", borderRadius: "4px" }} />
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <div style={{ height: "18px", width: "50px", background: "rgba(139, 90, 43, 0.06)", borderRadius: "99px" }} />
-                      <div style={{ height: "18px", width: "80px", background: "rgba(139, 90, 43, 0.04)", borderRadius: "99px" }} />
-                    </div>
-                    <div style={{ height: "10px", width: "90%", background: "rgba(139, 90, 43, 0.04)", borderRadius: "3px", marginTop: "4px" }} />
-                  </div>
-                </div>
-              ))}
+          <div className="flex flex-col items-center text-center">
+            {/* Top tiny line */}
+            <div className="w-full flex items-center justify-between text-[10px] tracking-[0.25em] font-semibold text-[color:var(--muted)] uppercase border-b border-[color:var(--line)] pb-3 mb-8">
+              <span>EST. 2026</span>
+              <span>FLOWER CARD FEED</span>
+              <span>VOL. I NO. I</span>
             </div>
-          ) : cards.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "var(--muted)" }}>
-              <Flower2 size={48} style={{ margin: "0 auto 16px", opacity: 0.25 }} />
-              <p style={{ fontSize: "16px", marginBottom: "6px" }}>還沒有人分享花卡</p>
-              <p style={{ fontSize: "13px" }}>快去工作坊創作你的第一張花卡！</p>
-              <Link
-                href="/studio"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  marginTop: "24px",
-                  padding: "10px 20px",
-                  borderRadius: "999px",
-                  background: "var(--foreground)",
-                  color: "var(--background)",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                }}
-              >
-                前往工作坊
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          ) : (
-            <>
-              <AnimatePresence>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                    gap: "20px",
-                    alignItems: "start",
-                  }}
-                >
-                  {cards.map((card, i) => (
-                    <CardTweet key={card.id} card={card} index={i} />
-                  ))}
-                </div>
-              </AnimatePresence>
 
-              {/* Load More Button */}
-              {hasMore && (
-                <div style={{ textAlign: "center", marginTop: "48px" }}>
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    style={{
-                      padding: "12px 36px",
-                      borderRadius: "999px",
-                      border: "1px solid var(--line)",
-                      background: "transparent",
-                      color: "var(--foreground)",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                      outline: "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "rgba(92, 64, 51, 0.04)";
-                      e.currentTarget.style.borderColor = "hsl(33 30% 75%)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.borderColor = "var(--line)";
-                    }}
-                  >
-                    {loadingMore ? "正在載入..." : "載入更多"}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+            {/* Giant Title */}
+            <h1 className="font-display text-4xl md:text-6xl font-bold tracking-[0.1em] text-[color:var(--foreground)] uppercase mb-6 leading-none">
+              SEASONAL BOTANICALS
+            </h1>
+            
+            {/* Subtitle */}
+            <p className="font-display text-lg md:text-xl tracking-[0.05em] text-[color:var(--foreground)] opacity-85 italic mb-8">
+              — 花卡推特 —
+            </p>
+
+            {/* Middle horizontal double lines or border wrapper for meta info */}
+            <div className="w-full border-y-2 border-double border-[color:var(--line)] py-3 px-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold tracking-wider text-[color:var(--muted)] uppercase">
+              <div className="flex items-center gap-1.5">
+                <span>TAIPEI, TAIWAN</span>
+              </div>
+              <div className="hidden sm:block text-[11px] italic font-display lowercase tracking-normal">
+                "every pressed flower holds a silent blessing"
+              </div>
+              <div className="flex items-center gap-2">
+                <span>本週新增</span>
+                <span className="bg-[color:var(--foreground)] text-[color:var(--background)] px-2.5 py-0.5 rounded-sm font-bold text-[10px]">
+                  {loading ? '-' : cards.length} 件作品
+                </span>
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="mt-6 max-w-4xl text-sm leading-relaxed text-[color:var(--muted)]">
+              每一張花卡，都是一句無聲的祝福。在這裡探索大家分享的壓花創作，寫下你的心意與心情，讓花語在字裡行間溫柔流傳。
+            </p>
+          </div>
         </Container>
-      </div>
+      </motion.div>
+
+
+      {/* Grid Feed */}
+      <Container className="mt-8">
+        {loading ? (
+          <div 
+            className="grid gap-x-6 gap-y-12"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-[color:var(--background)] p-8 h-[400px]"
+              >
+                 <div className="w-full h-full bg-black/5 dark:bg-white/5 animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : cards.length === 0 ? (
+          <div className="bg-[color:var(--background)] py-32 text-center text-[color:var(--muted)] border border-[color:var(--line)]">
+            <Flower2 size={48} className="mx-auto mb-4 opacity-25" />
+            <p className="text-base mb-2">還沒有人分享花卡</p>
+            <p className="text-sm">快去工作坊創作你的第一張花卡！</p>
+            <Link
+              href="/studio"
+              className="mt-8 inline-flex items-center gap-2 bg-[color:var(--foreground)] text-[color:var(--background)] px-6 py-3 text-sm font-semibold tracking-wide"
+            >
+              前往工作坊
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+        ) : (
+          <div 
+            className="grid gap-x-6 gap-y-12"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}
+          >
+            {cards.map((card, i) => (
+              <CardTweet key={card.id} card={card} index={i} />
+            ))}
+          </div>
+        )}
+      </Container>
     </div>
   );
 }

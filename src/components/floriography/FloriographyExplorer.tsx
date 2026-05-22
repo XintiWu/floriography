@@ -113,7 +113,7 @@ export function FloriographyExplorer({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜尋花名、花語或故事寓意..."
-              className="h-11 w-full rounded-full border border-[color:var(--line)] bg-[color:var(--card)]/60 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all backdrop-blur"
+              className="h-11 w-full border border-[color:var(--line)] bg-[color:var(--card)]/60 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all backdrop-blur"
             />
             {searchQuery && (
               <button
@@ -126,10 +126,10 @@ export function FloriographyExplorer({
           </div>
 
           {/* 模式切換開關 (Segmented Control) */}
-          <div className="flex p-1 bg-[color:var(--card)]/60 border border-[color:var(--line)] rounded-full backdrop-blur self-start md:self-auto">
+          <div className="flex p-1 bg-[color:var(--card)]/60 border border-[color:var(--line)] backdrop-blur self-start md:self-auto">
             <button
               onClick={() => setSearchMode("flower")}
-              className={`flex-1 md:flex-none px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
                 searchMode === "flower"
                   ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
                   : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
@@ -139,7 +139,7 @@ export function FloriographyExplorer({
             </button>
             <button
               onClick={() => setSearchMode("meaning")}
-              className={`flex-1 md:flex-none px-5 py-2 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
                 searchMode === "meaning"
                   ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
                   : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
@@ -210,7 +210,7 @@ export function FloriographyExplorer({
                       }`}
                     >
                       <div
-                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
+                        className={`w-14 h-14 flex items-center justify-center transition-all duration-300 overflow-hidden ${
                           isActive
                             ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
                             : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
@@ -244,7 +244,7 @@ export function FloriographyExplorer({
                     <button
                       key={tag}
                       onClick={() => handleTagChange(tag)}
-                      className={`h-9 px-4 rounded-full text-xs font-semibold tracking-wider transition-all duration-300 whitespace-nowrap ${
+                      className={`h-9 px-4 text-xs font-semibold tracking-wider transition-all duration-300 whitespace-nowrap ${
                         isActive
                           ? "bg-[color:var(--accent)]/10 text-[color:var(--accent)] border border-[color:var(--accent)]/30 shadow-sm"
                           : "bg-[color:var(--card)]/40 text-[color:var(--muted)] border border-[color:var(--line)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
@@ -265,7 +265,7 @@ export function FloriographyExplorer({
         
         {/* 左側欄：選中的花語展示中心 (對應 NFT Reference 圖左側 Top NFT 動態圈) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="relative rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 overflow-hidden group">
+          <div className="relative border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 overflow-hidden group">
             {/* 背景點綴光暈 */}
             <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-[color:var(--accent)]/10 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full bg-[color:var(--accent-2)]/10 blur-3xl pointer-events-none" />
@@ -275,7 +275,7 @@ export function FloriographyExplorer({
               <span className="text-xs font-semibold tracking-[0.24em] text-[color:var(--muted)]">
                 FLOWER MEANING
               </span>
-              <span className="rounded-full bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
+              <span className="bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
                 精選花語解析
               </span>
             </div>
@@ -287,7 +287,7 @@ export function FloriographyExplorer({
               <div className="absolute w-44 h-44 rounded-full border border-[color:var(--accent-2)]/20 animate-[spin_20s_linear_infinite_reverse]" />
               
               {/* 核心玻璃感立體圓盤 */}
-              <div className="relative z-10 w-36 h-36 rounded-full bg-gradient-to-tr from-[color:var(--card)] to-[color:var(--background)] border border-[color:var(--line)] shadow-lg shadow-black/5 flex flex-col items-center justify-center backdrop-blur-md transition-transform duration-500 group-hover:scale-105">
+              <div className="relative z-10 w-36 h-36 bg-gradient-to-tr from-[color:var(--card)] to-[color:var(--background)] border border-[color:var(--line)] shadow-lg shadow-black/5 flex flex-col items-center justify-center backdrop-blur-md transition-transform duration-500 group-hover:scale-105">
                 <p className="text-[10px] font-semibold text-[color:var(--muted)] tracking-widest uppercase">
                   寓意指標
                 </p>
@@ -304,7 +304,7 @@ export function FloriographyExplorer({
                       {activeFlower?.name ?? "花藝"}
                     </p>
                     {activeFlower?.meanings?.[0] && (
-                      <span className="mt-2 rounded-full bg-[color:var(--accent-2)] px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--paper)] tracking-widest">
+                      <span className="mt-2 bg-[color:var(--accent-2)] px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--paper)] tracking-widest">
                         #{activeFlower.meanings[0]}
                       </span>
                     )}
@@ -313,11 +313,11 @@ export function FloriographyExplorer({
               </div>
 
               {/* 浮動的裝飾小標記 (模仿 NFT 圖面左上/右下的浮動小指標) */}
-              <div className="absolute top-2 left-6 rounded-xl border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
+              <div className="absolute top-2 left-6 border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
                 <span className="text-[color:var(--muted)]">象徵 </span>
                 <span className="font-bold text-[color:var(--accent)]">{activeFlower?.meanings?.length ?? 0} 種意境</span>
               </div>
-              <div className="absolute bottom-2 right-6 rounded-xl border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
+              <div className="absolute bottom-2 right-6 border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
                 <span className="text-[color:var(--muted)]">適性 </span>
                 <span className="font-bold text-[color:var(--accent-2)]">極佳</span>
               </div>
@@ -342,7 +342,7 @@ export function FloriographyExplorer({
                       {(activeFlower?.meanings ?? ["祝福"]).map((m, i) => (
                         <span
                           key={i}
-                          className="inline-flex items-center rounded-lg bg-[color:var(--foreground)]/[0.04] dark:bg-[color:var(--foreground)]/[0.08] px-3 py-1.5 text-xs font-medium tracking-wide text-[color:var(--foreground)]"
+                          className="inline-flex items-center bg-[color:var(--foreground)]/[0.04] dark:bg-[color:var(--foreground)]/[0.08] px-3 py-1.5 text-xs font-medium tracking-wide text-[color:var(--foreground)]"
                         >
                           ✨ {m}
                         </span>
@@ -365,7 +365,7 @@ export function FloriographyExplorer({
           </div>
 
           {/* 左下側：可快速點選切換花語的直視卷軸清單 */}
-          <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)]/40 p-5">
+          <div className="border border-[color:var(--line)] bg-[color:var(--card)]/40 p-5">
             <span className="text-xs font-semibold tracking-wider text-[color:var(--muted)] block mb-3 px-2">
               選擇其他花語 ({filteredFlowers.length})
             </span>
@@ -376,7 +376,7 @@ export function FloriographyExplorer({
                   <button
                     key={f.id}
                     onClick={() => setActiveFlowerId(f.id)}
-                    className={`flex items-center justify-between w-full p-3 rounded-2xl text-left transition-all ${
+                    className={`flex items-center justify-between w-full p-3 text-left transition-all ${
                       isSelected
                         ? "bg-[color:var(--accent)]/10 border border-[color:var(--accent)]/30 text-[color:var(--accent)] font-semibold"
                         : "hover:bg-[color:var(--card)] border border-transparent text-[color:var(--foreground)]/80 hover:text-[color:var(--foreground)]"
@@ -427,7 +427,7 @@ export function FloriographyExplorer({
               return (
                 <div
                   key={c.id}
-                  className={`group relative rounded-3xl p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
+                  className={`group relative p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
                     isHighlyRecommended
                       ? "border-2 border-[color:var(--accent)] shadow-md shadow-[color:var(--accent)]/5"
                       : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
@@ -435,7 +435,7 @@ export function FloriographyExplorer({
                 >
                   {/* 若是高光推薦，加入一個精緻的 Badge */}
                   {isHighlyRecommended && (
-                    <div className="absolute -top-3 left-6 rounded-full bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
+                    <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
                       最佳適性推薦
                     </div>
                   )}
@@ -443,7 +443,7 @@ export function FloriographyExplorer({
                   {/* 上方創作者/擁有者標記列 */}
                   <div className="flex items-center justify-between gap-2 border-b border-[color:var(--line)]/60 pb-3 mb-4 pt-1">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[color:var(--accent-2)]/20 border border-[color:var(--accent-2)]/40 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent-2)]">
+                      <div className="w-6 h-6 bg-[color:var(--accent-2)]/20 border border-[color:var(--accent-2)]/40 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent-2)]">
                         ❀
                       </div>
                       <div>
@@ -467,7 +467,7 @@ export function FloriographyExplorer({
                   </div>
 
                   {/* 視覺卡片主體 (圖片預覽區) */}
-                  <div className="relative w-full aspect-[4/3] rounded-2xl bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] border border-[color:var(--line)] overflow-hidden mb-4 group-hover:shadow-inner transition-all flex items-center justify-center">
+                  <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] border border-[color:var(--line)] overflow-hidden mb-4 group-hover:shadow-inner transition-all flex items-center justify-center">
                     {/* 裝飾性幾何/花紋背景模擬精緻美感 */}
                     <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:16px_16px]" />
                     <div className="absolute -right-10 -bottom-10 w-32 h-32 rounded-full bg-[color:var(--accent)]/5 blur-xl" />
@@ -483,14 +483,14 @@ export function FloriographyExplorer({
                     </div>
 
                     {/* 懸浮預覽小標籤 */}
-                    <span className="absolute bottom-2 left-2 rounded-lg bg-[color:var(--card)]/90 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] border border-[color:var(--line)]">
+                    <span className="absolute bottom-2 left-2 bg-[color:var(--card)]/90 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] border border-[color:var(--line)]">
                       #{c.tags.moods[0] ?? "溫暖"}
                     </span>
                   </div>
 
                   {/* 動態內嵌展開的作品完整規格詳情 (不跳轉頁面) */}
                   {expandedCardId === c.id && (
-                    <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 rounded-2xl p-3 border border-[color:var(--line)]/40">
+                    <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
                       <div>
                         <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
                           作品設計理念 / 故事介紹
@@ -556,7 +556,7 @@ export function FloriographyExplorer({
                         e.stopPropagation();
                         setExpandedCardId((s) => (s === c.id ? null : c.id));
                       }}
-                      className={`h-10 rounded-xl border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
+                      className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
                         expandedCardId === c.id
                           ? "border-[color:var(--accent-2)] bg-[color:var(--accent-2)]/10 text-[color:var(--accent-2)]"
                           : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
@@ -568,7 +568,7 @@ export function FloriographyExplorer({
                     <Link
                       href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
                       onClick={(e) => e.stopPropagation()}
-                      className={`h-10 rounded-xl text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
+                      className={`h-10 text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
                         isHighlyRecommended
                           ? "bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)]/90 shadow-sm shadow-[color:var(--accent)]/20"
                           : "bg-[color:var(--ink)] text-[color:var(--paper)] hover:bg-black/85"
@@ -583,7 +583,7 @@ export function FloriographyExplorer({
           </div>
 
           {/* 底部互動提示橫幅 */}
-          <div className="mt-4 rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)]/60 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="mt-4 border border-[color:var(--line)] bg-[color:var(--card)]/60 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold tracking-wide">
                 想根據更複雜的情境或預算自動推算？
@@ -594,7 +594,7 @@ export function FloriographyExplorer({
             </div>
             <Link
               href="/recommend"
-              className="h-10 px-5 rounded-full bg-[color:var(--accent-2)] text-xs font-bold tracking-wider text-white hover:bg-[color:var(--accent-2)]/90 flex items-center justify-center transition-all shrink-0 shadow-sm"
+              className="h-10 px-5 bg-[color:var(--accent-2)] text-xs font-bold tracking-wider text-white hover:bg-[color:var(--accent-2)]/90 flex items-center justify-center transition-all shrink-0 shadow-sm"
             >
               前往情境推薦 →
             </Link>

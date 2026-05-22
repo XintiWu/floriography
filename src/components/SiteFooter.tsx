@@ -4,9 +4,9 @@ import { Container } from "@/components/Container";
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-[color:var(--line)]">
-      <Container className="grid gap-6 py-10 sm:grid-cols-2 sm:items-start">
+      <Container className="grid gap-6 py-20 sm:grid-cols-2 sm:items-start">
         <div className="grid gap-2">
-          <p className="font-[family-name:var(--font-display)] tracking-[0.12em] uppercase">
+          <p className="font-[family-name:var(--font-display)] text-xl tracking-[0.12em] uppercase">
             Floriography
           </p>
           <p className="text-sm text-[color:var(--muted)] leading-7">

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, ArrowLeft, Flower2, Copy, Check, Share2, Sparkles, Heart, X, Send, CreditCard, User, Phone, MapPin, MessageSquare, ChevronLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { getDisplayCardTitle } from "@/lib/galleryDisplay";
 
 interface CardData {
   id: string;
@@ -51,6 +52,7 @@ function generateSparkles(count: number): Sparkle[] {
 
 export function CardDetailView({ cardId }: { cardId: string }) {
   const [card, setCard] = useState<CardData | null>(null);
+  const [feedIndex, setFeedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -132,14 +134,15 @@ export function CardDetailView({ cardId }: { cardId: string }) {
   };
 
   useEffect(() => {
-    // Generate sparkles on client mount to prevent SSR hydration mismatch
-    setSparkles(generateSparkles(22));
-
-    fetch(`/api/cards/${cardId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setCard(data.card || null);
-        setCommentsList(data.card?.comments || []);
+    Promise.all([
+      fetch(`/api/cards/${cardId}`).then((r) => r.json()),
+      fetch("/api/cards").then((r) => r.json()),
+    ])
+      .then(([detail, list]) => {
+        const cards = list.cards || [];
+        const idx = cards.findIndex((c: { id: string }) => c.id === cardId);
+        setFeedIndex(idx >= 0 ? idx : 0);
+        setCard(detail.card || null);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -151,6 +154,8 @@ export function CardDetailView({ cardId }: { cardId: string }) {
     setLinkCopied(true);
     setTimeout(() => setLinkCopied(false), 2500);
   };
+
+  const displayTitle = card ? getDisplayCardTitle(card, feedIndex) : "";
 
   const flowerPairs = card
     ? (card.flower_names || []).map((name, idx) => ({
@@ -262,15 +267,23 @@ export function CardDetailView({ cardId }: { cardId: string }) {
                     y: [-12, 12, -12],
                     rotate: [-0.6, 0.6, -0.6]
                   }}
-                  transition={{
-                    scale: { type: "spring", damping: 20, stiffness: 100 },
-                    opacity: { duration: 0.6 },
-                    y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-                    rotate: { duration: 6, repeat: Infinity, ease: "easeInOut" }
-                  }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <img src={card.image_data} alt={card.card_title || "壓花賀卡"} style={styles.cardImg} />
+                  <img src={card.image_data} alt={displayTitle || "壓花賀卡"} style={styles.cardImg} />
                   <div style={styles.cardGlow} />
+
+                  {/* Shimmer */}
+                  <motion.div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background:
+                        "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)",
+                      pointerEvents: "none",
+                    }}
+                    animate={{ x: ["-100%", "200%"] }}
+                    transition={{ duration: 4, repeat: Infinity, repeatDelay: 6, ease: "easeInOut" }}
+                  />
                 </motion.div>
               </div>
             </div>
@@ -289,7 +302,7 @@ export function CardDetailView({ cardId }: { cardId: string }) {
                     <Sparkles size={11} color="#8B5A2B" />
                     <span>DIGITAL FLOWER CARD</span>
                   </div>
-                  <h1 style={styles.cardTitle}>{card.card_title || "無題的作品"}</h1>
+                  <h1 style={styles.cardTitle}>{displayTitle || "無題的作品"}</h1>
                   
                   <div style={styles.authorBadge}>
                     <span>由</span>
@@ -685,7 +698,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 20px",
     backgroundColor: "#F5EBE6",
     color: "#5C4033",
-    borderRadius: "9999px",
+    borderRadius: "0px",
     fontSize: "13px",
     fontWeight: 600,
     border: "none",
@@ -706,7 +719,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #EADCD1",
     backgroundColor: "#FCF9F6",
     color: "#8B5A2B",
-    borderRadius: "9999px",
+    borderRadius: "0px",
     fontSize: "13px",
     fontWeight: 600,
     cursor: "pointer",
@@ -740,7 +753,7 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "center",
     padding: "60px 40px",
     backgroundColor: "rgba(255, 255, 255, 0.6)",
-    borderRadius: "28px",
+    borderRadius: "0px",
     border: "1px solid #EADCD1",
     maxWidth: "400px",
     boxShadow: "0 10px 30px rgba(92, 64, 51, 0.04)",
@@ -762,7 +775,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "10px 24px",
     backgroundColor: "#8B5A2B",
     color: "#fff",
-    borderRadius: "9999px",
+    borderRadius: "0px",
     fontSize: "14px",
     fontWeight: 600,
     textDecoration: "none",
@@ -800,7 +813,7 @@ const styles: Record<string, React.CSSProperties> = {
   cardFrame: {
     width: "100%",
     height: "100%",
-    borderRadius: "28px",
+    borderRadius: "0px",
     boxShadow: "0 30px 80px rgba(122, 99, 85, 0.2), 0 10px 24px rgba(0, 0, 0, 0.06)",
     overflow: "hidden",
     border: "1px solid rgba(139, 90, 43, 0.12)",
@@ -828,7 +841,7 @@ const styles: Record<string, React.CSSProperties> = {
   detailsCard: {
     backgroundColor: "rgba(252, 249, 246, 0.65)",
     border: "1px solid #EADCD1",
-    borderRadius: "28px",
+    borderRadius: "0px",
     padding: "44px",
     boxShadow: "0 12px 40px rgba(92, 64, 51, 0.05)",
     backdropFilter: "blur(16px)",
@@ -866,7 +879,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#7A6355",
     backgroundColor: "rgba(234, 220, 209, 0.4)",
     padding: "4px 14px",
-    borderRadius: "999px",
+    borderRadius: "0px",
   },
   authorName: {
     fontWeight: 700,
@@ -876,7 +889,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     background: "rgba(245, 235, 230, 0.55)",
     borderLeft: "3px solid #8B5A2B",
-    borderRadius: "0 16px 16px 0",
+    borderRadius: "0px",
     padding: "20px 24px",
     margin: "0 0 32px 0",
   },
@@ -910,7 +923,7 @@ const styles: Record<string, React.CSSProperties> = {
   meaningsSection: {
     background: "rgba(139, 90, 43, 0.04)",
     border: "1px solid rgba(139, 90, 43, 0.09)",
-    borderRadius: "var(--radius-lg)",
+    borderRadius: "0px",
     padding: "20px 24px",
     marginBottom: "32px",
   },
@@ -995,7 +1008,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '12px 28px',
     background: 'linear-gradient(135deg, #7c5c30, #b38240)',
     color: '#fff',
-    borderRadius: '9999px',
+    borderRadius: '0px',
     fontSize: '14px',
     fontWeight: 600,
     textDecoration: 'none',
@@ -1020,7 +1033,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%",
     maxWidth: "840px",
     backgroundColor: "#FCF9F6",
-    borderRadius: "28px",
+    borderRadius: "0px",
     border: "1px solid #EADCD1",
     boxShadow: "0 20px 60px rgba(62, 39, 35, 0.25)",
     position: "relative",
@@ -1037,7 +1050,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#5C4033",
     width: "36px",
     height: "36px",
-    borderRadius: "50%",
+    borderRadius: "0px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1071,7 +1084,7 @@ const styles: Record<string, React.CSSProperties> = {
   modalPriceContainer: {
     backgroundColor: "rgba(139, 90, 43, 0.05)",
     border: "1px solid rgba(139, 90, 43, 0.1)",
-    borderRadius: "16px",
+    borderRadius: "0px",
     padding: "14px 18px",
     marginBottom: "20px",
     display: "flex",
@@ -1097,7 +1110,7 @@ const styles: Record<string, React.CSSProperties> = {
   modalCardPreviewFrame: {
     width: "100%",
     aspectRatio: "3/4",
-    borderRadius: "16px",
+    borderRadius: "0px",
     overflow: "hidden",
     border: "1px solid rgba(139, 90, 43, 0.12)",
     boxShadow: "0 8px 24px rgba(92, 64, 51, 0.08)",
@@ -1131,7 +1144,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formInput: {
     padding: "12px 14px",
-    borderRadius: "6px",
+    borderRadius: "0px",
     border: "1px solid #EADCD1",
     fontSize: "13px",
     outline: "none",
@@ -1140,7 +1153,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   formTextarea: {
     padding: "12px 14px",
-    borderRadius: "6px",
+    borderRadius: "0px",
     border: "1px solid #EADCD1",
     fontSize: "13px",
     outline: "none",
@@ -1155,7 +1168,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "14px",
     background: "linear-gradient(135deg, #7c5c30, #b38240)",
     color: "#fff",
-    borderRadius: "8px",
+    borderRadius: "0px",
     fontSize: "15px",
     fontWeight: 600,
     display: "flex",
@@ -1199,7 +1212,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: "480px",
     backgroundColor: "rgba(139, 90, 43, 0.03)",
     border: "1px solid #EADCD1",
-    borderRadius: "16px",
+    borderRadius: "0px",
     padding: "18px 24px",
     display: "flex",
     flexDirection: "column",
@@ -1219,7 +1232,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "14px",
     backgroundColor: "#8B5A2B",
     color: "#fff",
-    borderRadius: "8px",
+    borderRadius: "0px",
     fontSize: "14px",
     fontWeight: 600,
     border: "none",
@@ -1252,7 +1265,7 @@ const styles: Record<string, React.CSSProperties> = {
   detailCommentForm: {
     backgroundColor: "rgba(139, 90, 43, 0.03)",
     border: "1px solid rgba(139, 90, 43, 0.08)",
-    borderRadius: "20px",
+    borderRadius: "0px",
     padding: "28px",
     boxSizing: "border-box",
   },
@@ -1271,7 +1284,7 @@ const styles: Record<string, React.CSSProperties> = {
   commentInput: {
     width: "100%",
     padding: "12px 16px",
-    borderRadius: "8px",
+    borderRadius: "0px",
     border: "1px solid #EADCD1",
     fontSize: "14px",
     outline: "none",
@@ -1284,7 +1297,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: "#8B5A2B",
     color: "#fff",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "0px",
     fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
@@ -1297,7 +1310,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "48px 0",
     backgroundColor: "rgba(139, 90, 43, 0.01)",
     border: "1px dashed rgba(139, 90, 43, 0.15)",
-    borderRadius: "16px",
+    borderRadius: "0px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -1312,7 +1325,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "18px",
     backgroundColor: "#fff",
     border: "1px solid rgba(139, 90, 43, 0.08)",
-    borderRadius: "16px",
+    borderRadius: "0px",
     padding: "20px",
     boxShadow: "0 4px 15px rgba(92, 64, 51, 0.02)",
     boxSizing: "border-box",
@@ -1320,7 +1333,7 @@ const styles: Record<string, React.CSSProperties> = {
   commentAvatar: {
     width: "42px",
     height: "42px",
-    borderRadius: "50%",
+    borderRadius: "0px",
     backgroundColor: "rgba(139, 90, 43, 0.1)",
     color: "#8B5A2B",
     display: "flex",

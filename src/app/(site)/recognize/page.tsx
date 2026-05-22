@@ -74,7 +74,7 @@ export default function RecognizePage() {
           <div className="mt-3 flex items-center gap-3">
             <div className="h-px w-14 bg-[color:var(--accent-2)]/70" />
             <p className="text-sm leading-7 text-[color:var(--muted)]">
-              上傳花朵照片，後端辨識花名並回傳系統推薦結果。
+              上傳花朵照片，辨識花名並回傳系統推薦結果。
             </p>
           </div>
         </Container>
