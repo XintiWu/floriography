@@ -1,7 +1,7 @@
 import type { Card, Flower } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sampleCards, sampleFlowers } from "@/lib/sampleData";
-import { query } from "@/lib/db";
+import { isDbConfigured, query } from "@/lib/db";
 
 type CardRow = {
   id: string;
@@ -59,6 +59,8 @@ function mapFlower(row: FlowerRow): Flower {
 }
 
 export async function getCards(): Promise<Card[]> {
+  if (!isDbConfigured()) return sampleCards;
+
   try {
     const result = await query(`
       SELECT * FROM designs 
@@ -81,6 +83,8 @@ export async function getCards(): Promise<Card[]> {
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
+  if (!isDbConfigured()) return sampleCards.find((c) => c.id === id) ?? null;
+
   try {
     const result = await query(`
       SELECT * FROM designs 

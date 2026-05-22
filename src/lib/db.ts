@@ -1,22 +1,49 @@
-import { Pool } from 'pg';
+import { Pool, type QueryResult, type QueryResultRow } from "pg";
 
-const pool = new Pool({
-  host: process.env.OCI_DB_HOST,
-  port: parseInt(process.env.OCI_DB_PORT || '5432'),
-  database: process.env.OCI_DB_NAME,
-  user: process.env.OCI_DB_USER,
-  password: process.env.OCI_DB_PASSWORD,
-  ssl: false, // 暫時關閉 SSL，視伺服器設定而定
-});
+let pool: Pool | null = null;
 
-// Self-healing schema migration to ensure is_public, like_count, and comments columns exist
-pool.query(`
-  ALTER TABLE shared_cards 
-  ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE,
-  ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]'::jsonb;
-`).catch((err) => {
-  console.error('Failed to run schema migrations:', err);
-});
+/** True when OCI Postgres env vars are set (local dev can skip DB). */
+export function isDbConfigured(): boolean {
+  return Boolean(
+    process.env.OCI_DB_HOST?.trim() &&
+      process.env.OCI_DB_NAME?.trim() &&
+      process.env.OCI_DB_USER?.trim()
+  );
+}
 
-export const query = (text: string, params?: any[]) => pool.query(text, params);
+function getPool(): Pool {
+  if (!isDbConfigured()) {
+    throw new Error("OCI database is not configured (missing OCI_DB_* env vars)");
+  }
+
+  if (!pool) {
+    pool = new Pool({
+      host: process.env.OCI_DB_HOST,
+      port: parseInt(process.env.OCI_DB_PORT || "5432", 10),
+      database: process.env.OCI_DB_NAME,
+      user: process.env.OCI_DB_USER,
+      password: process.env.OCI_DB_PASSWORD,
+      ssl: false,
+    });
+
+    pool
+      .query(`
+        ALTER TABLE shared_cards 
+        ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]'::jsonb;
+      `)
+      .catch((err) => {
+        console.error("Failed to run schema migrations:", err);
+      });
+  }
+
+  return pool;
+}
+
+export function query<R extends QueryResultRow = QueryResultRow>(
+  text: string,
+  params?: unknown[]
+): Promise<QueryResult<R>> {
+  return getPool().query<R>(text, params);
+}
