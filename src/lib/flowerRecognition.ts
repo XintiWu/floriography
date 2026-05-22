@@ -31,7 +31,7 @@ export async function recognizeFlowerFromBuffer(
                     text:
                       '請仔細觀察這張圖片中的花朵，只回傳一個花朵名稱（繁體中文）與信心值（0-1）。' +
                       '回傳 JSON 格式：{"name":"花名","confidence":0.95}。' +
-                      '若圖片不含花朵，回傳 {"name":"","confidence":0.0}',
+                      '若圖片不含花朵，回傳 {"name":"圖片不含花朵，隨機推薦","confidence":0.0}',
                   },
                   {
                     inline_data: {
@@ -86,9 +86,15 @@ export async function recognizeFlowerFromBuffer(
       } else {
         const err = await res.text();
         console.warn("Gemini API error:", res.status, err);
+        if (res.status >= 500 && res.status < 600) {
+          throw new Error("GeminiServerBusy");
+        }
       }
     } catch (err) {
       console.warn("Gemini recognition failed:", err);
+      if (err instanceof Error && err.message === "GeminiServerBusy") {
+        throw err;
+      }
     }
   }
 

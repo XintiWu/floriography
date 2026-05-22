@@ -24,14 +24,33 @@ export async function POST(req: Request) {
       buf = Buffer.from(raw, "base64");
     }
 
-    const recog = await recognizeFlowerFromBuffer(buf!);
+    let recog;
+    let serverBusy = false;
 
-    const flowers = await getFlowers();
+    try {
+      recog = await recognizeFlowerFromBuffer(buf!);
+    } catch (err) {
+      if (err instanceof Error && err.message === "GeminiServerBusy") {
+        serverBusy = true;
+        recog = {
+          name: "",
+          confidence: 0,
+          engine: "gemini:server-busy",
+        };
+      } else {
+        throw err;
+      }
+    }
+
     const cards = await getCards();
+    const flowers = serverBusy ? [] : await getFlowers();
 
-    const matchedFlower = flowers.find(
-      (f) => f.name.toLowerCase() === recog.name.toLowerCase()
-    ) || flowers.find((f) => recog.name.toLowerCase().includes(f.name.toLowerCase()));
+    const matchedFlower = serverBusy
+      ? null
+      :
+        flowers.find(
+          (f) => f.name.toLowerCase() === recog.name.toLowerCase()
+        ) || flowers.find((f) => recog.name.toLowerCase().includes(f.name.toLowerCase()));
 
     let recommendations = [] as any[];
 
@@ -59,7 +78,9 @@ export async function POST(req: Request) {
       const shuffled = cards.sort(() => 0.5 - Math.random());
       recommendations = shuffled.slice(0, 3).map((card) => ({
         card,
-        why: matchedFlower
+        why: serverBusy
+          ? `伺服器繁忙，請稍後再試一次。先為您隨機推薦三個花卡。`
+          : matchedFlower
           ? `辨識出「${recog.name}」，但系統資料庫找不到對應花種，改以隨機推薦相近風格的作品。`
           : `系統未辨識到已知花種，隨機推薦作品供參考。`,
       }));
@@ -71,6 +92,9 @@ export async function POST(req: Request) {
       engine: recog.engine,
       matchedFlower: matchedFlower ?? null,
       recommendations,
+      message: serverBusy
+        ? "Gemini 伺服器繁忙，請稍後再試一次。"
+        : undefined,
     });
   } catch (err) {
     console.error("Recognize API error:", err);

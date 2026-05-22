@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Container } from "@/components/Container";
 import { Button } from "@/components/Button";
+import { CardGrid } from "@/components/cards/CardGrid";
 
 export default function RecognizePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -116,10 +117,19 @@ export default function RecognizePage() {
 
             {response ? (
               <div className="rounded-4xl border border-[color:var(--line)] bg-[color:var(--background)] p-5 text-sm text-[color:var(--ink)]">
-                <h2 className="mb-4 text-lg font-semibold">辨識結果</h2>
-                <pre className="whitespace-pre-wrap break-words text-sm leading-6">
-                  {JSON.stringify(response, null, 2)}
-                </pre>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">辨識結果</h2>
+                  <p className="mt-2 text-2xl font-bold text-[color:var(--accent)]">{response.recognizedName || '未辨識出花種'}</p>
+                  {response.message ? (
+                    <p className="mt-2 text-sm text-[color:var(--muted)]">{response.message}</p>
+                  ) : null}
+                </div>
+
+                {Array.isArray(response.recommendations) && response.recommendations.length > 0 ? (
+                  <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
+                ) : (
+                  <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
+                )}
               </div>
             ) : null}
           </div>
