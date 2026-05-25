@@ -150,7 +150,6 @@ export default function RecognizePage() {
         setPhase("idle");
       } else {
         setResponse(data);
-        setSelectedFlower("全部");
         const delay = 900; // ms for generation animation
         setTimeout(() => {
           setPhase("done");
@@ -322,36 +321,7 @@ export default function RecognizePage() {
                 ) : (
                   <>
                     {Array.isArray(response?.recommendations) && response.recommendations.length > 0 ? (
-                      <>
-                        {availableFlowerTags.length > 0 ? (
-                          <div className="mb-6 rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-4">
-                            <div className="mb-3 flex flex-wrap items-center gap-3">
-                              <p className="text-sm font-semibold text-[color:var(--ink)]">依花材篩選</p>
-                              <span className="text-xs text-[color:var(--muted)]">僅顯示推薦卡片中包含的花朵</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                className={`h-9 rounded-full px-4 text-xs font-semibold transition-all ${selectedFlower === "全部" ? "bg-[color:var(--accent)] text-white" : "bg-[color:var(--background)] text-[color:var(--foreground)] border border-[color:var(--line)]"}`}
-                                onClick={() => setSelectedFlower("全部")}
-                              >
-                                全部
-                              </button>
-                              {availableFlowerTags.map((flower) => (
-                                <button
-                                  key={flower}
-                                  type="button"
-                                  className={`h-9 rounded-full px-4 text-xs font-semibold transition-all ${selectedFlower === flower ? "bg-[color:var(--accent)] text-white" : "bg-[color:var(--background)] text-[color:var(--foreground)] border border-[color:var(--line)]"}`}
-                                  onClick={() => setSelectedFlower(flower)}
-                                >
-                                  {flower}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                        <CardGrid cards={filteredCards} />
-                      </>
+                      <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
                     ) : (
                       <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
                     )}
