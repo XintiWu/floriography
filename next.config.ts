@@ -13,15 +13,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
+  async redirects() {
     return [
       {
         source: "/FlowerDB/images/:dir/:filename([^/\\.]+)\\.:ext(jpg|jpeg|png|JPG|JPEG|PNG)",
         destination: "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
+        permanent: false,
       },
       {
         source: "/FlowerDB_nobg/images/:filename([^/\\.]+)\\.:ext(jpg|jpeg|png|JPG|JPEG|PNG)",
         destination: "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
+        permanent: false,
       },
     ];
   },
