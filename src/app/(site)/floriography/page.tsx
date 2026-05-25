@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/Container";
-import { getCardsFromData } from "@/lib/cardsData";
-import { getFlowersFromData } from "@/lib/flowersData";
+import { getFlowers, getCards } from "@/lib/catalog";
 import { FloriographyExplorer } from "@/components/floriography/FloriographyExplorer";
 
 export const metadata: Metadata = {
@@ -9,8 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default async function FloriographyPage() {
-  const flowers = getFlowersFromData();
-  const cards = getCardsFromData();
+  const flowers = await getFlowers();
+  const cards = await getCards();
 
   return (
     <main className="flex-1">

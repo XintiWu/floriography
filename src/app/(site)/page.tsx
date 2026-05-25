@@ -21,7 +21,7 @@ export default async function Home() {
               </h2>
             </div>
             <Link
-              href="/cards"
+              href="/floriography"
               className="text-sm font-semibold tracking-wide hover:underline"
             >
               查看全部 →

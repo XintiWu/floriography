@@ -106,8 +106,8 @@ export function HomeHeroEditorial() {
               }}
               className="mt-9 flex flex-wrap items-center gap-3"
             >
-              <Button href="/cards" size="lg">
-                逛作品
+              <Button href="/floriography" size="lg">
+                逛花語
               </Button>
               <Button href="/reserve" size="lg" variant="outline">
                 預訂/詢價

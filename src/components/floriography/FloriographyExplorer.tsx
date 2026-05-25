@@ -742,19 +742,13 @@ export function FloriographyExplorer({
 
                   {/* 底部按鈕列 */}
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedCardId((s) => (s === c.id ? null : c.id));
-                      }}
-                      className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
-                        expandedCardId === c.id
-                          ? "border-[color:var(--accent-2)] bg-[color:var(--accent-2)]/10 text-[color:var(--accent-2)]"
-                          : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
-                      }`}
+                    <Link
+                      href={`/cards/${encodeURIComponent(c.id)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
                     >
-                      {expandedCardId === c.id ? "收起詳情" : "作品詳情"}
-                    </button>
+                      作品詳情
+                    </Link>
                     
                     <Link
                       href={`/reserve?cardId=${encodeURIComponent(c.id)}`}

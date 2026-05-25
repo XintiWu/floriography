@@ -110,38 +110,78 @@ function enrichCard(row: any): Card {
 }
 
 export async function getCards(): Promise<Card[]> {
-  if (!isDbConfigured()) return getCardsFromData();
-  try {
-    const result = await query(`
-      SELECT * FROM designs 
-      ORDER BY created_at DESC
-    `);
-    
-    if (result.rows.length === 0) return getCardsFromData();
-    return result.rows.map(enrichCard);
-  } catch (err) {
-    console.error("Failed to fetch cards from OCI:", err);
-    return getCardsFromData();
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT * FROM designs 
+        ORDER BY created_at DESC
+      `);
+      
+      if (result.rows.length > 0) {
+        return result.rows.map(enrichCard);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cards from OCI:", err);
+    }
   }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        return (data as CardRow[]).map(mapCard);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cards from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getCardsFromData();
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
-  if (!isDbConfigured()) return getCardFromDataById(id);
-  try {
-    const result = await query(`
-      SELECT * FROM designs 
-      WHERE id = $1
-    `, [id]);
-    
-    if (result.rows.length === 0) {
-      return getCardsFromData().find(c => c.id === id) || null;
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT * FROM designs 
+        WHERE id = $1
+      `, [id]);
+      
+      if (result.rows.length > 0) {
+        return enrichCard(result.rows[0]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch card by ID from OCI:", err);
     }
-    
-    return enrichCard(result.rows[0]);
-  } catch (err) {
-    console.error("Failed to fetch card by ID from OCI:", err);
-    return getCardFromDataById(id);
   }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (!error && data) {
+        return mapCard(data as CardRow);
+      }
+    } catch (err) {
+      console.error("Failed to fetch card by ID from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getCardFromDataById(id);
 }
 
 export async function getFlowers(): Promise<Flower[]> {
@@ -203,13 +243,20 @@ export async function getFlowers(): Promise<Flower[]> {
 }
 
 export async function getFlowerById(id: string): Promise<Flower | null> {
+  let nameFromSlug: string | null = null;
+  if (id.startsWith("flower-")) {
+    try {
+      nameFromSlug = decodeURIComponent(id.substring(7));
+    } catch (e) {}
+  }
+
   // 1. Try OCI Database if configured
   if (isDbConfigured()) {
     try {
       const result = await query(`
         SELECT * FROM assets 
-        WHERE type = 'flower' AND id = $1
-      `, [id]);
+        WHERE type = 'flower' AND (id = $1 OR name = $1 OR ($2::text IS NOT NULL AND name = $2))
+      `, [id, nameFromSlug]);
       
       if (result.rows.length > 0) {
         const row = result.rows[0];
@@ -240,11 +287,13 @@ export async function getFlowerById(id: string): Promise<Flower | null> {
   const supabase = createSupabaseServerClient();
   if (supabase) {
     try {
-      const { data, error } = await supabase
-        .from("flowers")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      let query = supabase.from("flowers").select("*");
+      if (nameFromSlug) {
+        query = query.or(`id.eq."${id}",name.eq."${nameFromSlug}"`);
+      } else {
+        query = query.eq("id", id);
+      }
+      const { data, error } = await query.maybeSingle();
       if (!error && data) {
         return mapFlower(data as FlowerRow);
       }
@@ -254,5 +303,5 @@ export async function getFlowerById(id: string): Promise<Flower | null> {
   }
 
   // 3. Fallback to local data
-  return getFlowersFromData().find((f) => f.id === id) ?? null;
+  return getFlowersFromData().find((f) => f.id === id || (nameFromSlug && f.name === nameFromSlug)) ?? null;
 }

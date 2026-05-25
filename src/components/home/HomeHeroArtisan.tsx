@@ -103,14 +103,11 @@ export function HomeHeroArtisan() {
               }}
               className="mt-9 flex flex-wrap items-center gap-3"
             >
-              <Button href="/cards" size="lg">
-                逛作品
+              <Button href="/floriography" size="lg">
+                逛花語選卡
               </Button>
               <Button href="/reserve" size="lg" variant="outline">
                 預訂/詢價
-              </Button>
-              <Button href="/floriography" size="lg" variant="ghost">
-                看花語故事
               </Button>
             </motion.div>
           </div>

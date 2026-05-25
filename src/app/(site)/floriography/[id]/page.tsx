@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
-import { getCardsFromData } from "@/lib/cardsData";
-import { getFlowersFromData } from "@/lib/flowersData";
+import { getFlowerById, getCards } from "@/lib/catalog";
 import { resolveFlowerMeanings } from "@/lib/flowerMeanings";
 import { resolveFlowerStory } from "@/lib/flowerStory";
 
@@ -13,7 +12,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const flower = getFlowersFromData().find((f) => f.id === id);
+  const flower = await getFlowerById(id);
   return { title: flower ? flower.name : "花語" };
 }
 
@@ -23,13 +22,14 @@ export default async function FlowerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const flower = getFlowersFromData().find((f) => f.id === id);
+  const flower = await getFlowerById(id);
   if (!flower) notFound();
 
-  const meanings = resolveFlowerMeanings(flower.name);
-  const story = resolveFlowerStory(flower.name);
+  const dbMeanings = flower.meanings && flower.meanings.length > 0 ? flower.meanings : [];
+  const meanings = dbMeanings.length > 0 ? dbMeanings : resolveFlowerMeanings(flower.name);
+  const story = flower.story || resolveFlowerStory(flower.name);
 
-  const allCards = getCardsFromData();
+  const allCards = await getCards();
   const related = allCards.filter((c) =>
     c.tags.flowers.some(
       (x) => x.includes(flower.name) || flower.name.includes(x)

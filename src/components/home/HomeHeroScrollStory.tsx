@@ -185,8 +185,8 @@ export function HomeHeroScrollStory() {
               }}
               className="mt-9 flex flex-wrap items-center gap-3"
             >
-              <Button href="/cards" size="lg">
-                逛作品
+              <Button href="/floriography" size="lg">
+                逛花語
               </Button>
               <Button href="/recommend" size="lg" variant="outline">
                 讓我推薦
