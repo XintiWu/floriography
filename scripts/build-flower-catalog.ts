@@ -196,10 +196,25 @@ async function main(): Promise<void> {
   }
 
   const imagesRoot = join(ROOT, "FlowerDB", "images");
+  const csvPath = join(ROOT, "FlowerDB", "metadata.csv");
+
+  if (!existsSync(imagesRoot) || !existsSync(csvPath)) {
+    console.warn(
+      `[build-flower-catalog] Warning: FlowerDB/images or FlowerDB/metadata.csv not found. Skipping catalog build.`
+    );
+    const outPath = join(ROOT, "src", "data", "flowerCatalog.json");
+    if (existsSync(outPath)) {
+      console.log(`[build-flower-catalog] Using existing flowerCatalog.json at ${outPath}.`);
+      return;
+    } else {
+      console.error(`[build-flower-catalog] Error: No existing flowerCatalog.json found at ${outPath} and FlowerDB is missing.`);
+      process.exit(1);
+    }
+  }
+
   const basenameToAbs = new Map<string, string>();
   walkImages(imagesRoot, basenameToAbs);
 
-  const csvPath = join(ROOT, "FlowerDB", "metadata.csv");
   const csvText = readFileSync(csvPath, "utf8");
   const lines = csvText.split(/\r?\n/).filter(Boolean);
   const header = lines[0];

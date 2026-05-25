@@ -13,6 +13,7 @@ const nav = [
   { href: "/cards", label: "作品" },
   { href: "/floriography", label: "花語資料庫" },
   { href: "/recommend", label: "情境推薦" },
+  { href: "/recognize", label: "花朵辨識" },
   { href: "/studio", label: "創作工作坊" },
   { href: "/gallery", label: "花語牆" },
   { href: "/faq", label: "FAQ" },

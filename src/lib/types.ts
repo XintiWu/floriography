@@ -32,6 +32,8 @@ export type Flower = {
   meanings: string[];
   story?: string;
   relatedTags?: string[];
+  imageUrl?: string;
+  scientificName?: string;
 };
 
 export type OrderRequestStatus =

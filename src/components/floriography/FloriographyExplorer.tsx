@@ -11,62 +11,216 @@ import {
 } from "@/lib/flowerMeanings";
 import { resolveFlowerStory } from "@/lib/flowerStory";
 import { getFlowerSpeciesImageUrl } from "@/lib/flowerSpeciesImage";
+import { authService } from "@/services/authService";
 
 export function FloriographyExplorer({
-  flowers,
+  flowers: initialFlowers,
   cards,
 }: {
   flowers: Flower[];
   cards: Card[];
 }) {
+  // Deduplicate flowers from initial list to prevent UI duplication if any
+  const flowers = useMemo(() => {
+    const seen = new Set<string>();
+    return initialFlowers.filter(f => {
+      if (seen.has(f.name)) return false;
+      seen.add(f.name);
+      return true;
+    });
+  }, [initialFlowers]);
+
+  const [searchMode, setSearchMode] = useState<"flower" | "meaning" | "favorite">("flower");
+  const [selectedTag, setSelectedTag] = useState<string>("全部");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeFlowerId, setActiveFlowerId] = useState<string>(
-    flowers[0]?.id ?? ""
-  );
+  const [activeFlowerId, setActiveFlowerId] = useState<string>("");
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [brokenFlowerImages, setBrokenFlowerImages] = useState<Set<string>>(
     () => new Set()
   );
 
-  // 依花種名稱（及花語、故事）過濾
+  const [user, setUser] = useState<any>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  // 提取熱門分類標籤
+  const popularTags = useMemo(() => {
+    const set = new Set<string>();
+    flowers.forEach((f) => {
+      f.relatedTags?.forEach((t) => set.add(t));
+      // 若沒有 relatedTags，拿前幾個花語
+      if (!f.relatedTags?.length) {
+        f.meanings.slice(0, 1).forEach((m) => set.add(m));
+      }
+    });
+    // 挑選幾個最具代表性的美學標籤呈現
+    const targetTags = ["全部", "希望", "愛情", "祝福", "鼓勵", "思念", "穩定", "喜悅", "純潔"];
+    return targetTags.filter(t => t === "全部" || set.has(t) || flowers.some(f => f.meanings.includes(t)));
+  }, [flowers]);
+
+  // Load favorites
+  useEffect(() => {
+    authService.getUser().then(setUser);
+    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (user) {
+        try {
+          const res = await fetch("/api/flowers/favorite");
+          const data = await res.json();
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          }
+        } catch (err) {
+          console.error("Failed to load DB favorites:", err);
+        }
+      } else {
+        const local = localStorage.getItem("fav_flowers");
+        if (local) {
+          try {
+            setFavorites(JSON.parse(local));
+          } catch {
+            setFavorites([]);
+          }
+        } else {
+          setFavorites([]);
+        }
+      }
+    };
+    loadFavorites();
+  }, [user]);
+
+  // 過濾花卉清單
   const filteredFlowers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return flowers;
+    const q = searchQuery.toLowerCase();
 
     return flowers.filter((f) => {
-      const labels = resolveFlowerMeanings(f.name);
-      const storyText = resolveFlowerStory(f.name) ?? "";
-      return (
+      if (searchMode === "favorite") {
+        return favorites.includes(f.id);
+      }
+
+      const matchTag =
+        searchMode === "flower" ||
+        selectedTag === "全部" ||
+        f.meanings.includes(selectedTag) ||
+        f.relatedTags?.includes(selectedTag);
+
+      const labels = resolveFlowerMeanings(f.name, f.meanings);
+      const storyText = resolveFlowerStory(f.name) ?? f.story ?? "";
+
+      const matchQuery =
+        !q ||
         f.name.toLowerCase().includes(q) ||
         labels.some((m) => m.toLowerCase().includes(q)) ||
-        storyText.toLowerCase().includes(q)
-      );
-    });
-  }, [flowers, searchQuery]);
+        storyText.toLowerCase().includes(q);
 
-  // 搜尋後若目前選中的花種不在結果中，改選第一筆
-  useEffect(() => {
-    if (filteredFlowers.length === 0) return;
-    if (!filteredFlowers.some((f) => f.id === activeFlowerId)) {
-      setActiveFlowerId(filteredFlowers[0].id);
-    }
-  }, [filteredFlowers, activeFlowerId]);
+      return matchTag && matchQuery;
+    });
+  }, [flowers, selectedTag, searchQuery, searchMode, favorites]);
 
   // 取得當前選中的花卉
   const activeFlower = useMemo(() => {
     return flowers.find((f) => f.id === activeFlowerId) ?? filteredFlowers[0] ?? flowers[0];
   }, [flowers, filteredFlowers, activeFlowerId]);
 
+  // Initialize activeFlowerId to first flower if not set
+  useEffect(() => {
+    if (!activeFlowerId && flowers.length > 0) {
+      setActiveFlowerId(flowers[0].id);
+    }
+  }, [flowers, activeFlowerId]);
+
   /** 核心花語意涵：以 flower_meanings.json 為準，列出全部 */
   const activeFlowerMeanings = useMemo(() => {
     if (!activeFlower) return ["祝福"];
-    return resolveFlowerMeanings(activeFlower.name);
+    return resolveFlowerMeanings(activeFlower.name, activeFlower.meanings);
   }, [activeFlower]);
 
   const activeFlowerStory = useMemo(() => {
     if (!activeFlower) return undefined;
-    return resolveFlowerStory(activeFlower.name);
+    return resolveFlowerStory(activeFlower.name) ?? activeFlower.story;
   }, [activeFlower]);
+
+  // 當過濾名單改變，且當前選中花卉不在過濾名單中，自動設為過濾名單的第一個
+  useEffect(() => {
+    if (filteredFlowers.length > 0) {
+      if (!filteredFlowers.some((f) => f.id === activeFlowerId)) {
+        setActiveFlowerId(filteredFlowers[0].id);
+      }
+    }
+  }, [filteredFlowers, activeFlowerId, searchMode]);
+
+  const toggleFavorite = async () => {
+    if (!activeFlower) return;
+    const flowerId = activeFlower.id;
+    const isFav = favorites.includes(flowerId);
+    
+    let updatedFavorites: string[];
+    if (isFav) {
+      updatedFavorites = favorites.filter(id => id !== flowerId);
+    } else {
+      updatedFavorites = [...favorites, flowerId];
+    }
+    
+    setFavorites(updatedFavorites);
+    
+    if (user) {
+      try {
+        await fetch("/api/flowers/favorite", {
+          method: isFav ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ flowerId })
+        });
+      } catch (err) {
+        console.error("Failed to toggle DB favorite:", err);
+      }
+    } else {
+      localStorage.setItem("fav_flowers", JSON.stringify(updatedFavorites));
+    }
+  };
+
+  const isFavorited = useMemo(() => {
+    if (!activeFlower) return false;
+    return favorites.includes(activeFlower.id);
+  }, [activeFlower, favorites]);
+
+  // 當分類切換時，自動將選中花卉設為該分類的第一個
+  const handleTagChange = (tag: string) => {
+    setSelectedTag(tag);
+    const firstOfTag = flowers.filter((f) => 
+      tag === "全部" || f.meanings.includes(tag) || f.relatedTags?.includes(tag)
+    )[0];
+    if (firstOfTag) {
+      setActiveFlowerId(firstOfTag.id);
+    }
+  };
+
+  // 找出含有相對應花材的卡片，並將其替代成那種花的圖片
+  const getCardImage = (c: Card) => {
+    if (activeFlower) {
+      const activeMatch = c.tags.flowers.some(
+        (fname) => fname.includes(activeFlower.name) || activeFlower.name.includes(fname)
+      );
+      if (activeMatch && activeFlower.imageUrl) {
+        return activeFlower.imageUrl;
+      }
+    }
+
+    for (const fname of c.tags.flowers) {
+      const found = flowers.find(
+        (f) => f.name.includes(fname) || fname.includes(f.name)
+      );
+      if (found && found.imageUrl) {
+        return found.imageUrl;
+      }
+    }
+
+    return c.images[0] || activeFlower?.imageUrl || "/demo/pressed-cards.png";
+  };
 
   // 過濾與當前花卉相關的推薦卡片作品
   const suitableCards = useMemo(() => {
@@ -119,86 +273,146 @@ export function FloriographyExplorer({
               </button>
             )}
           </div>
+
+          {/* 模式切換開關 (Segmented Control) */}
+          <div className="flex p-1 bg-[color:var(--card)]/60 border border-[color:var(--line)] backdrop-blur self-start md:self-auto">
+            <button
+              onClick={() => setSearchMode("flower")}
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "flower"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              🌸 依花種尋找
+            </button>
+            <button
+              onClick={() => setSearchMode("meaning")}
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "meaning"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              ✨ 依意境尋找
+            </button>
+            <button
+              onClick={() => setSearchMode("favorite")}
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "favorite"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              ❤️ 我的收藏
+            </button>
+          </div>
         </div>
 
-        {/* 花種選擇列 */}
-        <div className="w-full overflow-hidden min-h-[96px]">
-          <div className="flex items-start gap-4 overflow-x-auto pb-2 scrollbar-hide w-full">
-                {filteredFlowers.map((f) => {
-                  const isActive = activeFlowerId === f.id;
-                  const displayMeanings = getFlowerMeaningLabels(f.name, 3);
+        {/* 依據模式顯示對應的選項列 */}
+        <div className="w-full overflow-hidden min-h-[80px]">
+          <AnimatePresence mode="wait">
+            {searchMode === "flower" || searchMode === "favorite" ? (
+              <motion.div
+                key="flower-strip"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-start gap-4 overflow-x-auto pb-2 scrollbar-hide w-full"
+              >
+                {filteredFlowers.length > 0 ? (
+                  filteredFlowers.map((f) => {
+                    const isActive = activeFlowerId === f.id;
+                    const imageSrc = getFlowerSpeciesImageUrl(f.name);
+                    const imageBroken = brokenFlowerImages.has(f.id);
 
-                  const imageSrc = getFlowerSpeciesImageUrl(f.name);
-                  const imageBroken = brokenFlowerImages.has(f.id);
-
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => setActiveFlowerId(f.id)}
-                      className={`flex flex-col items-center gap-1.5 flex-shrink-0 group transition-all duration-300 max-w-[88px] ${
-                        isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <div
-                        className={`w-14 h-14 flex items-center justify-center transition-all duration-300 overflow-hidden shrink-0 ${
-                          isActive
-                            ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
-                            : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setActiveFlowerId(f.id)}
+                        className={`flex flex-col items-center gap-2 flex-shrink-0 group transition-all duration-300 ${
+                          isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
                         }`}
                       >
-                        {imageSrc && !imageBroken ? (
-                          <img
-                            src={imageSrc}
-                            alt={f.name}
-                            className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500"
-                            onError={() =>
-                              setBrokenFlowerImages((prev) => {
-                                const next = new Set(prev);
-                                next.add(f.id);
-                                return next;
-                              })
-                            }
-                          />
-                        ) : (
-                          <span
-                            className="text-2xl text-[color:var(--accent)]/70"
-                            aria-hidden
-                          >
-                            ❀
-                          </span>
-                        )}
-                      </div>
-                      <span className={`text-[11px] font-semibold tracking-wide text-center leading-tight ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--foreground)] group-hover:text-[color:var(--foreground)]"}`}>
-                        {f.name}
-                      </span>
-                      {displayMeanings.length > 0 && (
-                        <span
-                          className={`text-[9px] leading-snug text-center line-clamp-3 px-0.5 ${
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
                             isActive
-                              ? "text-[color:var(--muted)]"
-                              : "text-[color:var(--muted)]/80"
+                              ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
+                              : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
                           }`}
-                          title={displayMeanings.join("、")}
                         >
-                          {displayMeanings.join("、")}
+                          {imageSrc && !imageBroken ? (
+                            <img
+                              src={imageSrc}
+                              alt={f.name}
+                              className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500"
+                              onError={() =>
+                                setBrokenFlowerImages((prev) => {
+                                  const next = new Set(prev);
+                                  next.add(f.id);
+                                  return next;
+                                })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className="text-2xl text-[color:var(--accent)]/70"
+                              aria-hidden
+                            >
+                              ❀
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[11px] font-semibold tracking-widest ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]"}`}>
+                          {f.name}
                         </span>
-                      )}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center justify-center w-full py-4 text-xs text-[color:var(--muted)] font-medium">
+                    {searchMode === "favorite" 
+                      ? "尚未收藏任何花卉。在左側卡片點選 ❤️ 即可將其加入收藏！" 
+                      : "無符合搜尋條件的花卉"}
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="meaning-pills"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-wrap items-center gap-2 pb-2"
+              >
+                {popularTags.map((tag) => {
+                  const isActive = selectedTag === tag;
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagChange(tag)}
+                      className={`h-9 px-4 text-xs font-semibold tracking-wider transition-all duration-300 whitespace-nowrap ${
+                        isActive
+                          ? "bg-[color:var(--accent)]/10 text-[color:var(--accent)] border border-[color:var(--accent)]/30 shadow-sm"
+                          : "bg-[color:var(--card)]/40 text-[color:var(--muted)] border border-[color:var(--line)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
+                      }`}
+                    >
+                      {tag}
                     </button>
                   );
                 })}
-                {filteredFlowers.length === 0 && (
-                  <p className="text-xs text-[color:var(--muted)] py-4 px-2">
-                    找不到符合的花種
-                  </p>
-                )}
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* 核心雙欄佈局 */}
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
         
-        {/* 左側欄：選中的花語展示中心 (對應 NFT Reference 圖左側 Top NFT 動態圈) */}
+        {/* 左側欄：選中的花語展示中心 */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="relative border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 overflow-hidden group">
             {/* 背景點綴光暈 */}
@@ -210,12 +424,39 @@ export function FloriographyExplorer({
               <span className="text-xs font-semibold tracking-[0.24em] text-[color:var(--muted)]">
                 FLOWER MEANING
               </span>
-              <span className="bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
-                精選花語解析
-              </span>
+              <div className="flex items-center gap-2">
+                {activeFlower && (
+                  <button
+                    onClick={toggleFavorite}
+                    className={`p-2 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                      isFavorited
+                        ? "bg-red-500/10 border-red-500/30 text-red-500 scale-105"
+                        : "bg-[color:var(--card)] border-[color:var(--line)] text-[color:var(--muted)] hover:text-red-500 hover:border-red-500/20"
+                    }`}
+                    title={isFavorited ? "取消收藏" : "加入收藏"}
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill={isFavorited ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
+                )}
+                <span className="bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
+                  精選花語解析
+                </span>
+              </div>
             </div>
 
-            {/* 視覺焦點：動態環形設計 (向使用者的 Reference 圓形儀表板致敬) */}
+            {/* 視覺焦點：動態環形設計 */}
             <div className="my-8 flex flex-col items-center justify-center relative py-6">
               {/* 外圈旋轉光環裝飾 */}
               <div className="absolute w-52 h-52 rounded-full border border-dashed border-[color:var(--accent)]/30 animate-[spin_30s_linear_infinite]" />
@@ -247,7 +488,7 @@ export function FloriographyExplorer({
                 </AnimatePresence>
               </div>
 
-              {/* 浮動的裝飾小標記 (模仿 NFT 圖面左上/右下的浮動小指標) */}
+              {/* 浮動的裝飾小標記 */}
               <div className="absolute top-2 left-6 border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
                 <span className="text-[color:var(--muted)]">象徵 </span>
                 <span className="font-bold text-[color:var(--accent)]">{activeFlowerMeanings.length} 種意境</span>
@@ -307,7 +548,7 @@ export function FloriographyExplorer({
             <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
               {filteredFlowers.map((f) => {
                 const isSelected = f.id === activeFlower?.id;
-                const listMeanings = resolveFlowerMeanings(f.name);
+                const listMeanings = resolveFlowerMeanings(f.name, f.meanings);
                 return (
                   <button
                     key={f.id}
@@ -339,7 +580,7 @@ export function FloriographyExplorer({
           </div>
         </div>
 
-        {/* 右側欄：推薦卡片清單 (對應 NFT Reference 圖右側 Rare NFT 高光卡片網格) */}
+        {/* 右側欄：推薦卡片清單 */}
         <div className="lg:col-span-7 flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
             <div>
@@ -357,7 +598,6 @@ export function FloriographyExplorer({
 
           <div className="grid gap-5 sm:grid-cols-2">
             {suitableCards.map((c, idx) => {
-              // 模擬首張卡片為「極致推薦 (高光 Highlight)」(呼應使用者截圖中帶有藍色光環的中心 NFT)
               const isHighlyRecommended = idx === 0;
 
               return (
@@ -369,7 +609,6 @@ export function FloriographyExplorer({
                       : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
                   }`}
                 >
-                  {/* 若是高光推薦，加入一個精緻的 Badge */}
                   {isHighlyRecommended && (
                     <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
                       最佳適性推薦
@@ -501,7 +740,7 @@ export function FloriographyExplorer({
                     </div>
                   </div>
 
-                  {/* 底部按鈕列 (內嵌展開按鈕與預訂雙按鈕) */}
+                  {/* 底部按鈕列 */}
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
                     <button
                       onClick={(e) => {
