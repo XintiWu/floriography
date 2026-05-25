@@ -1,26 +1,41 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Flower, Card } from "@/lib/types";
+import { authService } from "@/services/authService";
 
 export function FloriographyExplorer({
-  flowers,
+  flowers: initialFlowers,
   cards,
 }: {
   flowers: Flower[];
   cards: Card[];
 }) {
   const router = useRouter();
-  const [searchMode, setSearchMode] = useState<"flower" | "meaning">("flower");
+
+  // Deduplicate flowers from initial list to prevent UI duplication if any
+  const flowers = useMemo(() => {
+    const seen = new Set<string>();
+    return initialFlowers.filter(f => {
+      if (seen.has(f.name)) return false;
+      seen.add(f.name);
+      return true;
+    });
+  }, [initialFlowers]);
+
+  const [searchMode, setSearchMode] = useState<"flower" | "meaning" | "favorite">("flower");
   const [selectedTag, setSelectedTag] = useState<string>("全部");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [activeFlowerId, setActiveFlowerId] = useState<string>(
     flowers[0]?.id ?? ""
   );
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  const [user, setUser] = useState<any>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   // 提取熱門分類標籤
   const popularTags = useMemo(() => {
@@ -37,9 +52,50 @@ export function FloriographyExplorer({
     return targetTags.filter(t => t === "全部" || set.has(t) || flowers.some(f => f.meanings.includes(t)));
   }, [flowers]);
 
+  // Load favorites
+  useEffect(() => {
+    authService.getUser().then(setUser);
+    const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      if (user) {
+        try {
+          const res = await fetch("/api/flowers/favorite");
+          const data = await res.json();
+          if (data.favorites) {
+            setFavorites(data.favorites);
+          }
+        } catch (err) {
+          console.error("Failed to load DB favorites:", err);
+        }
+      } else {
+        const local = localStorage.getItem("fav_flowers");
+        if (local) {
+          try {
+            setFavorites(JSON.parse(local));
+          } catch {
+            setFavorites([]);
+          }
+        } else {
+          setFavorites([]);
+        }
+      }
+    };
+    loadFavorites();
+  }, [user]);
+
   // 過濾花卉清單
   const filteredFlowers = useMemo(() => {
     return flowers.filter((f) => {
+      if (searchMode === "favorite") {
+        return favorites.includes(f.id);
+      }
+
       const matchTag =
         searchMode === "flower" ||
         selectedTag === "全部" ||
@@ -54,12 +110,55 @@ export function FloriographyExplorer({
 
       return matchTag && matchQuery;
     });
-  }, [flowers, selectedTag, searchQuery, searchMode]);
+  }, [flowers, selectedTag, searchQuery, searchMode, favorites]);
 
   // 取得當前選中的花卉
   const activeFlower = useMemo(() => {
     return flowers.find((f) => f.id === activeFlowerId) ?? filteredFlowers[0] ?? flowers[0];
   }, [flowers, filteredFlowers, activeFlowerId]);
+
+  // 當過濾名單改變，且當前選中花卉不在過濾名單中，自動設為過濾名單的第一個
+  useEffect(() => {
+    if (filteredFlowers.length > 0) {
+      if (!filteredFlowers.some((f) => f.id === activeFlowerId)) {
+        setActiveFlowerId(filteredFlowers[0].id);
+      }
+    }
+  }, [filteredFlowers, activeFlowerId, searchMode]);
+
+  const toggleFavorite = async () => {
+    if (!activeFlower) return;
+    const flowerId = activeFlower.id;
+    const isFav = favorites.includes(flowerId);
+    
+    let updatedFavorites: string[];
+    if (isFav) {
+      updatedFavorites = favorites.filter(id => id !== flowerId);
+    } else {
+      updatedFavorites = [...favorites, flowerId];
+    }
+    
+    setFavorites(updatedFavorites);
+    
+    if (user) {
+      try {
+        await fetch("/api/flowers/favorite", {
+          method: isFav ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ flowerId })
+        });
+      } catch (err) {
+        console.error("Failed to toggle DB favorite:", err);
+      }
+    } else {
+      localStorage.setItem("fav_flowers", JSON.stringify(updatedFavorites));
+    }
+  };
+
+  const isFavorited = useMemo(() => {
+    if (!activeFlower) return false;
+    return favorites.includes(activeFlower.id);
+  }, [activeFlower, favorites]);
 
   // 當分類切換時，自動將選中花卉設為該分類的第一個
   const handleTagChange = (tag: string) => {
@@ -70,6 +169,29 @@ export function FloriographyExplorer({
     if (firstOfTag) {
       setActiveFlowerId(firstOfTag.id);
     }
+  };
+
+  // 找出含有相對應花材的卡片，並將其替代成那種花的圖片
+  const getCardImage = (c: Card) => {
+    if (activeFlower) {
+      const activeMatch = c.tags.flowers.some(
+        (fname) => fname.includes(activeFlower.name) || activeFlower.name.includes(fname)
+      );
+      if (activeMatch && activeFlower.imageUrl) {
+        return activeFlower.imageUrl;
+      }
+    }
+
+    for (const fname of c.tags.flowers) {
+      const found = flowers.find(
+        (f) => f.name.includes(fname) || fname.includes(f.name)
+      );
+      if (found && found.imageUrl) {
+        return found.imageUrl;
+      }
+    }
+
+    return c.images[0] || activeFlower?.imageUrl || "/demo/pressed-cards.png";
   };
 
   // 過濾與當前花卉相關的推薦卡片作品
@@ -147,13 +269,23 @@ export function FloriographyExplorer({
             >
               ✨ 依意境尋找
             </button>
+            <button
+              onClick={() => setSearchMode("favorite")}
+              className={`flex-1 md:flex-none px-5 py-2 text-xs font-semibold tracking-wider transition-all duration-300 flex items-center justify-center gap-1.5 ${
+                searchMode === "favorite"
+                  ? "bg-[color:var(--ink)] text-[color:var(--paper)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              ❤️ 我的收藏
+            </button>
           </div>
         </div>
 
         {/* 依據模式顯示對應的選項列 */}
         <div className="w-full overflow-hidden min-h-[80px]">
           <AnimatePresence mode="wait">
-            {searchMode === "flower" ? (
+            {searchMode === "flower" || searchMode === "favorite" ? (
               <motion.div
                 key="flower-strip"
                 initial={{ opacity: 0, y: 10 }}
@@ -162,72 +294,80 @@ export function FloriographyExplorer({
                 transition={{ duration: 0.2 }}
                 className="flex items-start gap-4 overflow-x-auto pb-2 scrollbar-hide w-full"
               >
-                {flowers.map((f) => {
-                  const isActive = activeFlowerId === f.id;
-                  
-                  const getFlowerImage = (name: string) => {
-                    if (name.includes("繡球花")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
-                    if (name.includes("香水合歡")) return "/FlowerDB_nobg/images/IMG_9631_processed.png";
-                    if (name.includes("星辰花")) return "/FlowerDB_nobg/images/IMG_20260501_135711228_processed.png";
-                    if (name.includes("卡斯比亞")) return "/FlowerDB_nobg/images/IMG_20260501_135615974_processed.png";
-                    if (name.includes("月季")) return "/FlowerDB_nobg/images/IMG_9684_processed.png";
-                    if (name.includes("玫瑰")) return "/FlowerDB_nobg/images/IMG_9713_processed.png";
-                    if (name.includes("九重葛")) return "/FlowerDB_nobg/images/IMG_9708_processed.png";
-                    if (name.includes("仙丹花")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                    if (name.includes("台灣欒樹")) return "/FlowerDB_nobg/images/IMG_9714_processed.png";
-                    if (name.includes("細葉雪茄花")) return "/FlowerDB_nobg/images/IMG_9702_processed.png";
-                    if (name.includes("落羽杉")) return "/FlowerDB_nobg/images/IMG_9711_processed.png";
-                    if (name.includes("鐵刀木")) return "/FlowerDB_nobg/images/IMG_9709_processed.png";
-                    if (name.includes("兔仔菜")) return "/FlowerDB_nobg/images/IMG_9681_processed.png";
-                    if (name.includes("大花咸豐草")) return "/FlowerDB_nobg/images/IMG_20260501_134509973_processed.png";
-                    if (name.includes("櫻花")) return "/FlowerDB_nobg/images/IMG_9606_processed.png";
-                    if (name.includes("馬蘭")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
-                    if (name.includes("夏堇")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
-                    if (name.includes("金魚草")) return "/FlowerDB_nobg/images/IMG_9647_processed.png";
-                    if (name.includes("野毛蕨")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                    if (name.includes("風鈴花")) return "/FlowerDB_nobg/images/IMG_9636_processed.png";
-                    if (name.includes("針葉櫻桃")) return "/FlowerDB_nobg/images/IMG_8721_processed.png";
-                    if (name.includes("黃蝴蝶")) return "/FlowerDB_nobg/images/IMG_9683_processed.png";
-                    if (name.includes("金英樹")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
-                    if (name.includes("南美朱槿")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
-                    if (name.includes("美國肖楠")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
-                    if (name.includes("構樹")) return "/FlowerDB_nobg/images/IMG_9625_processed.png";
-                    if (name.includes("垂枝茉莉")) return "/FlowerDB_nobg/images/IMG_8737_processed.png";
-                    if (name.includes("泡盛草")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                    if (name.includes("天使花")) return "/FlowerDB_nobg/images/IMG_9626_processed.png";
-                    if (name.includes("立鶴花")) return "/FlowerDB_nobg/images/IMG_8877_processed.png";
-                    if (name.includes("新幾內亞鳳仙花")) return "/FlowerDB_nobg/images/IMG_20260501_124640378_processed.png";
-                    if (name.includes("蒜香藤")) return "/FlowerDB_nobg/images/IMG_9689_processed.png";
-                    return "/FlowerDB_nobg/images/IMG_8705_processed.png";
-                  };
+                {filteredFlowers.length > 0 ? (
+                  filteredFlowers.map((f) => {
+                    const isActive = activeFlowerId === f.id;
+                    
+                    const getFlowerImage = (name: string) => {
+                      if (name.includes("繡球花")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
+                      if (name.includes("香水合歡")) return "/FlowerDB_nobg/images/IMG_9631_processed.png";
+                      if (name.includes("星辰花")) return "/FlowerDB_nobg/images/IMG_20260501_135711228_processed.png";
+                      if (name.includes("卡斯比亞")) return "/FlowerDB_nobg/images/IMG_20260501_135615974_processed.png";
+                      if (name.includes("月季")) return "/FlowerDB_nobg/images/IMG_9684_processed.png";
+                      if (name.includes("玫瑰")) return "/FlowerDB_nobg/images/IMG_9713_processed.png";
+                      if (name.includes("九重葛")) return "/FlowerDB_nobg/images/IMG_9708_processed.png";
+                      if (name.includes("仙丹花")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                      if (name.includes("台灣欒樹")) return "/FlowerDB_nobg/images/IMG_9714_processed.png";
+                      if (name.includes("細葉雪茄花")) return "/FlowerDB_nobg/images/IMG_9702_processed.png";
+                      if (name.includes("落羽杉")) return "/FlowerDB_nobg/images/IMG_9711_processed.png";
+                      if (name.includes("鐵刀木")) return "/FlowerDB_nobg/images/IMG_9709_processed.png";
+                      if (name.includes("兔仔菜")) return "/FlowerDB_nobg/images/IMG_9681_processed.png";
+                      if (name.includes("大花咸豐草")) return "/FlowerDB_nobg/images/IMG_20260501_134509973_processed.png";
+                      if (name.includes("櫻花")) return "/FlowerDB_nobg/images/IMG_9606_processed.png";
+                      if (name.includes("馬蘭")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
+                      if (name.includes("夏堇")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
+                      if (name.includes("金魚草")) return "/FlowerDB_nobg/images/IMG_9647_processed.png";
+                      if (name.includes("野毛蕨")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                      if (name.includes("風鈴花")) return "/FlowerDB_nobg/images/IMG_9636_processed.png";
+                      if (name.includes("針葉櫻桃")) return "/FlowerDB_nobg/images/IMG_8721_processed.png";
+                      if (name.includes("黃蝴蝶")) return "/FlowerDB_nobg/images/IMG_9683_processed.png";
+                      if (name.includes("金英樹")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
+                      if (name.includes("南美朱槿")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
+                      if (name.includes("美國肖楠")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
+                      if (name.includes("構樹")) return "/FlowerDB_nobg/images/IMG_9625_processed.png";
+                      if (name.includes("垂枝茉莉")) return "/FlowerDB_nobg/images/IMG_8737_processed.png";
+                      if (name.includes("泡盛草")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
+                      if (name.includes("天使花")) return "/FlowerDB_nobg/images/IMG_9626_processed.png";
+                      if (name.includes("立鶴花")) return "/FlowerDB_nobg/images/IMG_8877_processed.png";
+                      if (name.includes("新幾內亞鳳仙花")) return "/FlowerDB_nobg/images/IMG_20260501_124640378_processed.png";
+                      if (name.includes("蒜香藤")) return "/FlowerDB_nobg/images/IMG_9689_processed.png";
+                      return "/FlowerDB_nobg/images/IMG_8705_processed.png";
+                    };
 
-                  return (
-                    <button
-                      key={f.id}
-                      onClick={() => setActiveFlowerId(f.id)}
-                      className={`flex flex-col items-center gap-2 flex-shrink-0 group transition-all duration-300 ${
-                        isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
-                      }`}
-                    >
-                      <div
-                        className={`w-14 h-14 flex items-center justify-center transition-all duration-300 overflow-hidden ${
-                          isActive
-                            ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
-                            : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
+                    return (
+                      <button
+                        key={f.id}
+                        onClick={() => setActiveFlowerId(f.id)}
+                        className={`flex flex-col items-center gap-2 flex-shrink-0 group transition-all duration-300 ${
+                          isActive ? "opacity-100" : "opacity-60 hover:opacity-100"
                         }`}
                       >
-                        <img 
-                          src={getFlowerImage(f.name)} 
-                          alt={f.name} 
-                          className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500" 
-                        />
-                      </div>
-                      <span className={`text-[11px] font-semibold tracking-widest ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]"}`}>
-                        {f.name}
-                      </span>
-                    </button>
-                  );
-                })}
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 overflow-hidden ${
+                            isActive
+                              ? "bg-[color:var(--accent)]/10 border-2 border-[color:var(--accent)] shadow-[0_0_15px_rgba(var(--accent),0.2)] scale-110"
+                              : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
+                          }`}
+                        >
+                          <img 
+                            src={f.imageUrl || getFlowerImage(f.name)} 
+                            alt={f.name} 
+                            className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500" 
+                          />
+                        </div>
+                        <span className={`text-[11px] font-semibold tracking-widest ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]"}`}>
+                          {f.name}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="flex items-center justify-center w-full py-4 text-xs text-[color:var(--muted)] font-medium">
+                    {searchMode === "favorite" 
+                      ? "尚未收藏任何花卉。在左側卡片點選 ❤️ 即可將其加入收藏！" 
+                      : "無符合搜尋條件的花卉"}
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -275,9 +415,36 @@ export function FloriographyExplorer({
               <span className="text-xs font-semibold tracking-[0.24em] text-[color:var(--muted)]">
                 FLOWER MEANING
               </span>
-              <span className="bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
-                精選花語解析
-              </span>
+              <div className="flex items-center gap-2">
+                {activeFlower && (
+                  <button
+                    onClick={toggleFavorite}
+                    className={`p-2 rounded-full border transition-all duration-300 flex items-center justify-center ${
+                      isFavorited
+                        ? "bg-red-500/10 border-red-500/30 text-red-500 scale-105"
+                        : "bg-[color:var(--card)] border-[color:var(--line)] text-[color:var(--muted)] hover:text-red-500 hover:border-red-500/20"
+                    }`}
+                    title={isFavorited ? "取消收藏" : "加入收藏"}
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill={isFavorited ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth="2"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
+                )}
+                <span className="bg-[color:var(--accent)]/10 px-2.5 py-1 text-[10px] font-bold tracking-wider text-[color:var(--accent)] border border-[color:var(--accent)]/20">
+                  精選花語解析
+                </span>
+              </div>
             </div>
 
             {/* 視覺焦點：動態環形設計 (向使用者的 Reference 圓形儀表板致敬) */}
@@ -472,18 +639,27 @@ export function FloriographyExplorer({
                     <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:16px_16px]" />
                     <div className="absolute -right-10 -bottom-10 w-32 h-32 rounded-full bg-[color:var(--accent)]/5 blur-xl" />
                     
+                    {/* 替換為花的實體圖片 */}
+                    <img
+                      src={getCardImage(c)}
+                      alt={c.title}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 z-0"
+                    />
+                    {/* 漸變遮罩以確保文字清晰度 */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/5 z-10" />
+
                     {/* 卡片標題與主視覺字樣 */}
-                    <div className="relative z-10 text-center p-4">
-                      <p className="text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)] group-hover:scale-105 transition-transform duration-300">
+                    <div className="relative z-20 text-center p-4">
+                      <p className="text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-white group-hover:scale-105 transition-transform duration-300">
                         {c.title}
                       </p>
-                      <p className="text-[11px] text-[color:var(--muted)] mt-1 tracking-wide">
+                      <p className="text-[11px] text-white/80 mt-1 tracking-wide">
                         {c.size ?? "純手工精緻壓花"}
                       </p>
                     </div>
 
                     {/* 懸浮預覽小標籤 */}
-                    <span className="absolute bottom-2 left-2 bg-[color:var(--card)]/90 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] border border-[color:var(--line)]">
+                    <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-white/90 border border-white/10 z-20">
                       #{c.tags.moods[0] ?? "溫暖"}
                     </span>
                   </div>

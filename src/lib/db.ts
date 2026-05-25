@@ -26,16 +26,21 @@ function getPool(): Pool {
       ssl: false,
     });
 
-    pool
-      .query(`
-        ALTER TABLE shared_cards 
-        ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE,
-        ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]'::jsonb;
-      `)
-      .catch((err) => {
-        console.error("Failed to run schema migrations:", err);
-      });
+    pool.query(`
+  ALTER TABLE shared_cards 
+  ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS like_count INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]'::jsonb;
+
+  CREATE TABLE IF NOT EXISTS user_favorite_flowers (
+    user_id TEXT NOT NULL,
+    flower_id TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, flower_id)
+  );
+`).catch((err) => {
+  console.error('Failed to run schema migrations:', err);
+});
   }
 
   return pool;
