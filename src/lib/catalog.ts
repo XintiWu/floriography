@@ -1,7 +1,9 @@
 import type { Card, Flower } from "@/lib/types";
+import { getCardFromDataById, getCardsFromData } from "@/lib/cardsData";
+import { getFlowersFromData } from "@/lib/flowersData";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { sampleCards, sampleFlowers } from "@/lib/sampleData";
-import { isDbConfigured, query } from "@/lib/db";
+import { isDbConfigured } from "@/lib/dbConfig";
+import { query } from "@/lib/db";
 
 type CardRow = {
   id: string;
@@ -59,7 +61,7 @@ function mapFlower(row: FlowerRow): Flower {
 }
 
 export async function getCards(): Promise<Card[]> {
-  if (!isDbConfigured()) return sampleCards;
+  if (!isDbConfigured()) return getCardsFromData();
 
   try {
     const result = await query(`
@@ -71,19 +73,19 @@ export async function getCards(): Promise<Card[]> {
       id: row.id,
       title: row.name,
       priceTwd: row.total_price,
-      status: "available", // 預設為可售
+      status: "available" as const,
       images: [row.preview_url].filter(Boolean),
       blurb: row.description,
-      tags: { occasions: [], colors: [], flowers: [], moods: [] }
+      tags: { occasions: [], colors: [], flowers: [], moods: [] },
     }));
   } catch (err) {
     console.error("Failed to fetch cards from OCI:", err);
-    return sampleCards;
+    return getCardsFromData();
   }
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
-  if (!isDbConfigured()) return sampleCards.find((c) => c.id === id) ?? null;
+  if (!isDbConfigured()) return getCardFromDataById(id);
 
   try {
     const result = await query(`
@@ -105,33 +107,33 @@ export async function getCardById(id: string): Promise<Card | null> {
     };
   } catch (err) {
     console.error("Failed to fetch card by ID from OCI:", err);
-    return sampleCards.find(c => c.id === id) || null;
+    return getCardFromDataById(id);
   }
 }
 
 export async function getFlowers(): Promise<Flower[]> {
   const supabase = createSupabaseServerClient();
-  if (!supabase) return sampleFlowers;
+  if (!supabase) return getFlowersFromData();
 
   const { data, error } = await supabase
     .from("flowers")
     .select("*")
     .order("name", { ascending: true })
     .limit(300);
-  if (error) return sampleFlowers;
+  if (error) return getFlowersFromData();
   return ((data ?? []) as FlowerRow[]).map(mapFlower);
 }
 
 export async function getFlowerById(id: string): Promise<Flower | null> {
   const supabase = createSupabaseServerClient();
-  if (!supabase) return sampleFlowers.find((f) => f.id === id) ?? null;
+  if (!supabase) return getFlowersFromData().find((f) => f.id === id) ?? null;
 
   const { data, error } = await supabase
     .from("flowers")
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  if (error) return null;
+  if (error) return getFlowersFromData().find((f) => f.id === id) ?? null;
   return data ? mapFlower(data as FlowerRow) : null;
 }
 

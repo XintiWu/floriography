@@ -18,7 +18,12 @@ export type Card = {
     moods: string[];
   };
   blurb?: string;
+  /** 較長描述（情境推薦展開區等） */
   description?: string;
+  /** 商品圖原始寬度（建置時由 sharp 寫入） */
+  imageWidth?: number;
+  /** 商品圖原始高度 */
+  imageHeight?: number;
 };
 
 export type Flower = {

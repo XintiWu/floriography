@@ -1,23 +1,18 @@
-import { Pool, type QueryResult, type QueryResultRow } from "pg";
+import type { Pool, QueryResult, QueryResultRow } from "pg";
+import { isDbConfigured } from "@/lib/dbConfig";
+
+export { isDbConfigured } from "@/lib/dbConfig";
 
 let pool: Pool | null = null;
 
-/** True when OCI Postgres env vars are set (local dev can skip DB). */
-export function isDbConfigured(): boolean {
-  return Boolean(
-    process.env.OCI_DB_HOST?.trim() &&
-      process.env.OCI_DB_NAME?.trim() &&
-      process.env.OCI_DB_USER?.trim()
-  );
-}
-
-function getPool(): Pool {
+async function getPool(): Promise<Pool> {
   if (!isDbConfigured()) {
     throw new Error("OCI database is not configured (missing OCI_DB_* env vars)");
   }
 
   if (!pool) {
-    pool = new Pool({
+    const { Pool: PgPool } = await import("pg");
+    pool = new PgPool({
       host: process.env.OCI_DB_HOST,
       port: parseInt(process.env.OCI_DB_PORT || "5432", 10),
       database: process.env.OCI_DB_NAME,
@@ -41,9 +36,10 @@ function getPool(): Pool {
   return pool;
 }
 
-export function query<R extends QueryResultRow = QueryResultRow>(
+export async function query<R extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]
 ): Promise<QueryResult<R>> {
-  return getPool().query<R>(text, params);
+  const client = await getPool();
+  return client.query<R>(text, params);
 }

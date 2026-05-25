@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "predev": "npm run build:catalog",
+    "build:catalog": "tsx scripts/build-flower-catalog.ts",
+    "verify:descriptions": "node scripts/verify-descriptions.mjs",
+    "prebuild": "npm run build:catalog",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -36,7 +40,9 @@
     "@types/three": "^0.184.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
+    "tsx": "^4.22.0",
     "typescript": "^5"
   }
 }

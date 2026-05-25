@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/Container";
-import { getCards, getFlowerById } from "@/lib/catalog";
+import { getCardsFromData } from "@/lib/cardsData";
+import { getFlowersFromData } from "@/lib/flowersData";
+import { resolveFlowerMeanings } from "@/lib/flowerMeanings";
+import { resolveFlowerStory } from "@/lib/flowerStory";
 
 export async function generateMetadata({
   params,
@@ -10,7 +13,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const flower = await getFlowerById(id);
+  const flower = getFlowersFromData().find((f) => f.id === id);
   return { title: flower ? flower.name : "花語" };
 }
 
@@ -20,12 +23,17 @@ export default async function FlowerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const flower = await getFlowerById(id);
+  const flower = getFlowersFromData().find((f) => f.id === id);
   if (!flower) notFound();
 
-  const allCards = await getCards();
+  const meanings = resolveFlowerMeanings(flower.name);
+  const story = resolveFlowerStory(flower.name);
+
+  const allCards = getCardsFromData();
   const related = allCards.filter((c) =>
-    c.tags.flowers.some((x) => x.includes(flower.name))
+    c.tags.flowers.some(
+      (x) => x.includes(flower.name) || flower.name.includes(x)
+    )
   );
 
   return (
@@ -49,11 +57,11 @@ export default async function FlowerDetailPage({
               {flower.name}
             </h1>
             <p className="mt-4 text-sm leading-7 text-[color:var(--muted)]">
-              花語：{flower.meanings.join("、")}
+              花語：{meanings.join("、")}
             </p>
-            {flower.story ? (
-              <p className="mt-4 text-sm leading-7 text-[color:var(--muted)]">
-                {flower.story}
+            {story ? (
+              <p className="mt-4 text-sm leading-7 text-[color:var(--muted)] whitespace-pre-line">
+                {story}
               </p>
             ) : null}
           </div>
@@ -65,13 +73,13 @@ export default async function FlowerDetailPage({
               RELATED
             </p>
             <p className="mt-3 text-sm leading-7 text-[color:var(--muted)]">
-              相關作品（示範）：之後會改為根據標籤與推薦分數排序。
+              含此花材的標本卡作品。
             </p>
             <div className="mt-4 grid gap-2">
               {(related.length ? related : allCards.slice(0, 3)).map((c) => (
                 <Link
                   key={c.id}
-                  href={`/cards/${c.id}`}
+                  href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
                   className="rounded-2xl border border-[color:var(--line)] px-4 py-3 text-sm font-semibold tracking-wide hover:bg-black/5 dark:hover:bg-white/10"
                 >
                   {c.title}
