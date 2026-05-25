@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Container } from "@/components/Container";
 import { Button } from "@/components/Button";
 import { CardGrid } from "@/components/cards/CardGrid";
 
 export default function RecognizePage() {
   const [file, setFile] = useState<File | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<"idle" | "uploading" | "generating" | "done">("idle");
   const [response, setResponse] = useState<any>(null);
@@ -18,6 +22,80 @@ export default function RecognizePage() {
     const selected = event.target.files?.[0] ?? null;
     setFile(selected);
   };
+
+  const startCamera = async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      streamRef.current = stream;
+      setCameraOn(true);
+    } catch (err) {
+      console.error(err);
+      setError("無法啟用相機，請確認您的裝置和權限設定。");
+    }
+  };
+
+  const stopCamera = () => {
+    setCameraOn(false);
+    const s = streamRef.current;
+    if (s) {
+      s.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+        // @ts-ignore
+        videoRef.current.srcObject = null;
+      } catch (e) {
+        // ignore
+      }
+    }
+  };
+
+  const capturePhoto = async () => {
+    setError(null);
+    try {
+      const video = videoRef.current;
+      if (!video) return;
+      const w = video.videoWidth || 1280;
+      const h = video.videoHeight || 720;
+      let canvas = canvasRef.current;
+      if (!canvas) {
+        canvas = document.createElement("canvas");
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("無法取得畫布上下文");
+      ctx.drawImage(video, 0, 0, w, h);
+      const blob: Blob | null = await new Promise((resolve) => canvas!.toBlob((b) => resolve(b), "image/jpeg", 0.92));
+      if (!blob) throw new Error("無法產生相片檔案");
+      const capturedFile = new File([blob], `capture-${Date.now()}.jpg`, { type: "image/jpeg" });
+      setFile(capturedFile);
+      stopCamera();
+    } catch (err) {
+      console.error(err);
+      setError("拍照失敗，請再試一次。");
+    }
+  };
+
+  useEffect(() => {
+    if (cameraOn && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {
+        // ignore play promise rejection
+      });
+    }
+  }, [cameraOn]);
+
+  useEffect(() => {
+    return () => {
+      // cleanup on unmount
+      stopCamera();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async () => {
     if (!file) {
@@ -102,6 +180,39 @@ export default function RecognizePage() {
                 onChange={handleFileChange}
                 className="w-full rounded-3xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-3 text-sm text-[color:var(--ink)]"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-[color:var(--ink)] mb-2">或使用相機</label>
+              {!cameraOn ? (
+                <div>
+                  <Button
+                    onClick={startCamera}
+                    variant="ghost"
+                    className="w-full rounded-3xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-3 text-sm text-[color:var(--ink)] font-normal tracking-normal justify-start"
+                  >
+                    開啟相機
+                  </Button>
+                  <div className="mt-2 text-sm text-[color:var(--muted)]"></div>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  <div className="relative overflow-hidden rounded-2xl border border-[color:var(--line)] bg-black">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-auto max-h-[480px] object-cover"
+                      playsInline
+                      muted
+                      autoPlay
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button onClick={capturePhoto}>拍照</Button>
+                    <Button onClick={stopCamera} variant="ghost">取消</Button>
+                    <span className="text-sm text-[color:var(--muted)]">預覽相機畫面，點擊「拍照」取得影像。</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
