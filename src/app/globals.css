@@ -74,6 +74,33 @@ body {
   }
 }
 
+@keyframes scan-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 20px;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-10px) scale(1.02);
+  }
+}
+
+.animate-scan-stripes {
+  animation: scan-stripes 1.4s linear infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
 /* Responsive Grid for Card Details page */
 .detail-card-grid {
   display: grid !important;

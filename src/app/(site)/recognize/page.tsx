@@ -8,6 +8,7 @@ import { CardGrid } from "@/components/cards/CardGrid";
 export default function RecognizePage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "uploading" | "generating" | "done">("idle");
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ export default function RecognizePage() {
     setLoading(true);
     setError(null);
     setResponse(null);
+    setPhase("generating");
 
     try {
       const form = new FormData();
@@ -40,11 +42,17 @@ export default function RecognizePage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data?.error || "辨識失敗，請稍後再試。");
+        setPhase("idle");
       } else {
         setResponse(data);
+        const delay = 900; // ms for generation animation
+        setTimeout(() => {
+          setPhase("done");
+        }, delay);
       }
     } catch (err) {
       setError("無法連線至辨識服務。請確認伺服器已啟動。");
+      setPhase("idle");
     } finally {
       setLoading(false);
     }
@@ -75,7 +83,7 @@ export default function RecognizePage() {
           <div className="mt-3 flex items-center gap-3">
             <div className="h-px w-14 bg-[color:var(--accent-2)]/70" />
             <p className="text-sm leading-7 text-[color:var(--muted)]">
-              上傳花朵照片，辨識花名並回傳系統推薦結果。
+              在路上看到漂亮的花？隨手拍下它，立刻幫你找出包含它的花卡商品！
             </p>
           </div>
         </Container>
@@ -115,20 +123,63 @@ export default function RecognizePage() {
               </div>
             ) : null}
 
-            {response ? (
+            {(phase !== "idle") ? (
               <div className="rounded-4xl border border-[color:var(--line)] bg-[color:var(--background)] p-5 text-sm text-[color:var(--ink)]">
-                <div className="mb-4">
+                <div className="mb-6">
                   <h2 className="text-lg font-semibold">辨識結果</h2>
-                  <p className="mt-2 text-2xl font-bold text-[color:var(--accent)]">{response.recognizedName || '未辨識出花種'}</p>
-                  {response.message ? (
+                  <p className="mt-2 text-2xl font-bold text-[color:var(--accent)]">
+                    {phase === "generating"
+                      ? "辨識中..."
+                      : response?.recognizedName || "未辨識出花種"}
+                  </p>
+                  {response?.message ? (
                     <p className="mt-2 text-sm text-[color:var(--muted)]">{response.message}</p>
                   ) : null}
                 </div>
 
-                {Array.isArray(response.recommendations) && response.recommendations.length > 0 ? (
-                  <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
+                {phase === "generating" ? (
+                  <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+                    <div className="relative overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--card)] p-6">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_transparent_45%)] opacity-80" />
+                      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.08)_50%,rgba(255,255,255,0.08)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-scan-stripes" />
+                      <div className="relative flex min-h-[260px] flex-col justify-center gap-4">
+                        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[color:var(--accent)]/15 shadow-[0_18px_60px_-35px_rgba(169,168,149,0.8)]">
+                          <div className="h-12 w-12 rounded-full border border-[color:var(--accent)]/40 bg-[color:var(--accent)]/20 blur-[0.5px]" />
+                        </div>
+                        <div className="space-y-3 text-center">
+                          <p className="text-lg font-semibold text-[color:var(--ink)]">正在辨識花朵與搜尋花卡...</p>
+                          {/* <p className="text-sm text-[color:var(--muted)]">請稍候，系統正在分析花朵特徵並準備推薦卡片。</p> */}
+                        </div>
+                      </div>
+                      <div className="pointer-events-none absolute -left-10 top-12 h-24 w-24 rounded-full bg-[color:var(--accent-2)]/10 blur-3xl animate-float" />
+                      <div
+                        className="pointer-events-none absolute right-4 bottom-14 h-20 w-20 rounded-full bg-[color:var(--accent)]/10 blur-3xl animate-float"
+                        style={{ animationDelay: "1.5s" }}
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                      {[0, 1, 2].map((index) => (
+                        <div key={index} className="overflow-hidden rounded-[2rem] border border-[color:var(--line)] bg-[color:var(--card)] p-5 shadow-sm">
+                          <div className="h-36 rounded-[1.5rem] bg-gradient-to-br from-[color:var(--accent)]/10 via-transparent to-[color:var(--accent-2)]/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.2)]" />
+                          <div className="mt-4 h-4 w-3/4 rounded-full bg-[color:var(--muted)]/15" />
+                          <div className="mt-3 h-3 w-1/2 rounded-full bg-[color:var(--muted)]/10" />
+                          <div className="mt-3 flex gap-2">
+                            <span className="h-8 w-16 rounded-full bg-[color:var(--muted)]/10" />
+                            <span className="h-8 w-12 rounded-full bg-[color:var(--muted)]/10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
-                  <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
+                  <>
+                    {Array.isArray(response?.recommendations) && response.recommendations.length > 0 ? (
+                      <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
+                    ) : (
+                      <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
+                    )}
+                  </>
                 )}
               </div>
             ) : null}
