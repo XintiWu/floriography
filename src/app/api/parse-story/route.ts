@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { parseStoryWithRules } from "@/lib/parseStoryRules";
+import {
+  LlmParseError,
+  LlmUnavailableError,
+  parseStoryWithOllama,
+} from "@/lib/recommendOllama";
 
 const schema = z.object({
   story: z.string().min(1, "請輸入情境描述"),
 });
 
-/** 本機關鍵字規則解析，不呼叫任何 LLM / Ollama API */
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -18,9 +21,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const fields = parseStoryWithRules(parsed.data.story.trim());
-    return NextResponse.json({ ...fields, engine: "LocalRules" });
+    const fields = await parseStoryWithOllama(parsed.data.story.trim());
+    const model = process.env.OLLAMA_MODEL || "ollama";
+    return NextResponse.json({ ...fields, engine: `Ollama(${model})` });
   } catch (error) {
+    if (error instanceof LlmUnavailableError) {
+      return NextResponse.json(
+        { error: "llm_unavailable", message: error.message },
+        { status: 503 }
+      );
+    }
+    if (error instanceof LlmParseError) {
+      return NextResponse.json(
+        { error: "llm_parse_failed", message: error.message },
+        { status: 502 }
+      );
+    }
     console.error("parse-story error", error);
     return NextResponse.json({ error: "internal_server_error" }, { status: 500 });
   }

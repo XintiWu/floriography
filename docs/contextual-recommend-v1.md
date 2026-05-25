@@ -55,20 +55,26 @@ Next.js 僅對 [`public/`](public/) 提供穩定靜態路徑。專案內以 **�
 
 不依賴 LLM 時，以固定模板組出繁中文句，包含：命中的花材、n-gram 重疊概況、場合標籤、預算說明（若有）。
 
-## 5. API 與 LLM 二階段
+## 5. API 與 Ollama 流程
 
-[`src/app/api/recommend/route.ts`](src/app/api/recommend/route.ts)：
+[`src/app/api/recommend/route.ts`](src/app/api/recommend/route.ts)（**僅 Ollama**，無 TextMining 最終輸出、無 fallback）：
 
-1. **驗證**：至少一項文字條件或預算（與前端 `hasAnyInput` 對齊）；否則 `400`。
-2. **粗排**：對全量 `flowerCatalog` 執行上述文字探勘，取 **Top 20** 作為 LLM 候選池（控制 token）。
-3. **精選（可選）**：若設定 `GEMINI_API_KEY` / `OPENAI_API_KEY` / 本機 Ollama，則請模型**僅從候選 id 中**選 3 筆並撰寫理由；回傳欄位 `engine` 標示例如 `TextMining+Gemini`。
-4. **後備**：模型失敗、解析失敗或無金鑰時，回傳粗排 **Top 3**，`engine: TextMining`。
+| `mode` | 行為 |
+|--------|------|
+| `analyze` | 必填 `story` → 文字探勘粗排 Top 8 → **單次** Ollama 解析欄位並選卡 → 不足時粗排補位 → `{ fields, recommendations, engine }` |
+| `refine` | 必填右欄至少一項（可帶 `story`）→ 粗排 Top 8 → 單次 Ollama 選卡 → `{ recommendations, engine }` |
+
+環境變數：`OLLAMA_HOST`（預設 `http://127.0.0.1:11434`）、`OLLAMA_MODEL`（建議 `llama3.2:3b`，見 `.env.local.example`）。
+
+錯誤：`503 llm_unavailable`（Ollama 未啟動）、`502 llm_parse_failed`（JSON 無效或候選 id 不足 3）。
+
+文字探勘 [`scoreCatalogLocally`](src/lib/flowerRecommend.ts) **僅縮小候選池**，不作最終推薦。
 
 ## 6. 前端（[`RecommendForm.tsx`](src/components/recommend/RecommendForm.tsx)）
 
-- 結果卡片以 `next/image` 顯示 [`Card.images`](src/lib/types.ts) 第一張。
-- 「探索專屬推薦」需 **schema 合法且至少一項輸入**，與 API 一致。
-- API 錯誤訊息顯示於表單底部（如全空白送出）。
+- 左欄「**AI 分析並推薦**」→ `mode=analyze`；右欄可微調後「**重新生成**」→ `mode=refine`。
+- 結果顯示於表單**下方**（表單常駐）；`flowerMeaning` 為右欄「期望花語／心意」。
+- Ollama 不可用時顯示錯誤，**不**顯示推薦卡。
 
 ## 7. 已知限制與後續方向
 

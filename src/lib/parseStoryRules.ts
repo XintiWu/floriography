@@ -7,6 +7,7 @@ export type ParsedStoryFields = {
   mood?: string;
   budget?: number;
   color?: string;
+  flowerMeaning?: string;
 };
 
 const OCCASION_KEYWORDS: Record<string, string[]> = {
@@ -133,5 +134,8 @@ export function sanitizeParsedFields(
     out.budget = Math.round(raw.budget);
   }
   if (raw.color?.trim()) out.color = raw.color.trim().slice(0, 12);
+  if (raw.flowerMeaning?.trim()) {
+    out.flowerMeaning = raw.flowerMeaning.trim().slice(0, 80);
+  }
   return out;
 }

@@ -17,6 +17,7 @@ export type RecommendInput = {
   story?: string;
   budget?: number;
   color?: string;
+  flowerMeaning?: string;
 };
 
 export type ScoredRecommendation = {
@@ -68,9 +69,13 @@ function normalizeLoose(s: string): string {
 
 /** 推薦評分僅使用右欄五格（不含左欄 story） */
 export function hasStructuredInput(input: RecommendInput): boolean {
-  const textFields = [input.recipient, input.occasion, input.mood, input.color].some(
-    (x) => Boolean(x && String(x).trim())
-  );
+  const textFields = [
+    input.recipient,
+    input.occasion,
+    input.mood,
+    input.color,
+    input.flowerMeaning,
+  ].some((x) => Boolean(x && String(x).trim()));
   const hasBudget =
     typeof input.budget === "number" && Number.isFinite(input.budget) && input.budget >= 0;
   return textFields || hasBudget;
@@ -131,6 +136,7 @@ type FieldNotes = {
   color?: string;
   recipient?: string;
   budget?: string;
+  flowerMeaning?: string;
 };
 
 function buildStructuredWhy(input: RecommendInput, notes: FieldNotes): string {
@@ -140,11 +146,12 @@ function buildStructuredWhy(input: RecommendInput, notes: FieldNotes): string {
   if (notes.color) parts.push(notes.color);
   if (notes.recipient) parts.push(notes.recipient);
   if (notes.budget) parts.push(notes.budget);
+  if (notes.flowerMeaning) parts.push(notes.flowerMeaning);
   if (parts.length === 0) {
     parts.push("與您填寫的條件有部分共通標籤，可作為參考");
   }
   const who = input.recipient?.trim() || "收禮人";
-  return `【五格相似度】${parts.join("；")}。適合傳達給 ${who} 的心意。`;
+  return `【條件比對】${parts.join("；")}。適合傳達給 ${who} 的心意。`;
 }
 
 function normalizeDisplayScores(
@@ -227,6 +234,22 @@ export function scoreCatalogLocally(
       if (card.indexText.includes(recipientN)) {
         rawScore += WEIGHTS.recipient;
         notes.recipient = `敘事索引呼應送禮對象「${input.recipient}」`;
+      }
+    }
+
+    const meaningN = input.flowerMeaning ? normalizeLoose(input.flowerMeaning) : "";
+    if (meaningN && card.indexText.includes(meaningN)) {
+      rawScore += 14;
+      notes.flowerMeaning = `花語／心意「${input.flowerMeaning}」與作品索引相近`;
+    } else if (meaningN) {
+      const meaningParts = input.flowerMeaning!
+        .split(/[,，、\s]+/)
+        .map((p) => normalizeLoose(p))
+        .filter((p) => p.length >= 2);
+      const hit = meaningParts.some((p) => card.indexText.includes(p));
+      if (hit) {
+        rawScore += 10;
+        notes.flowerMeaning = `花語關鍵字與作品花材語意相呼應`;
       }
     }
 
