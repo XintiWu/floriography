@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Container } from "@/components/Container";
 import { Button } from "@/components/Button";
 import { CardGrid } from "@/components/cards/CardGrid";
@@ -14,6 +14,7 @@ export default function RecognizePage() {
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<"idle" | "uploading" | "generating" | "done">("idle");
   const [response, setResponse] = useState<any>(null);
+  const [selectedFlower, setSelectedFlower] = useState<string>("全部");
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +98,32 @@ export default function RecognizePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const recommendedCards = useMemo(() => {
+    return response?.recommendations?.map((r: any) => r.card) ?? [];
+  }, [response]);
+
+  const availableFlowerTags = useMemo(() => {
+    const set = new Set<string>();
+    recommendedCards.forEach((card: any) => {
+      const flowers = card?.tags?.flowers;
+      if (Array.isArray(flowers)) {
+        flowers.forEach((flower: string) => {
+          if (flower) set.add(flower);
+        });
+      }
+    });
+    return Array.from(set);
+  }, [recommendedCards]);
+
+  const filteredCards = useMemo(() => {
+    if (!selectedFlower || selectedFlower === "全部") {
+      return recommendedCards;
+    }
+    return recommendedCards.filter((card: any) =>
+      Array.isArray(card?.tags?.flowers) && card.tags.flowers.includes(selectedFlower)
+    );
+  }, [recommendedCards, selectedFlower]);
+
   const handleSubmit = async () => {
     if (!file) {
       setError("請先選擇一張花朵照片。 ");
@@ -123,6 +150,7 @@ export default function RecognizePage() {
         setPhase("idle");
       } else {
         setResponse(data);
+        setSelectedFlower("全部");
         const delay = 900; // ms for generation animation
         setTimeout(() => {
           setPhase("done");
@@ -246,6 +274,14 @@ export default function RecognizePage() {
                   {response?.message ? (
                     <p className="mt-2 text-sm text-[color:var(--muted)]">{response.message}</p>
                   ) : null}
+                  {response?.recognizedName && !response?.matchedFlower && phase !== "generating" ? (
+                    <p className="mt-2 text-sm text-[color:var(--muted)]">
+                      {response.recognizedName === "圖片不含花朵，隨機推薦花卡"
+                        ? ""
+                        : `我們目前沒有提供包含「${response.recognizedName}」的花卡，以下為隨機推薦之花卡。`
+                      }
+                    </p>
+                  ) : null}
                 </div>
 
                 {phase === "generating" ? (
@@ -286,7 +322,36 @@ export default function RecognizePage() {
                 ) : (
                   <>
                     {Array.isArray(response?.recommendations) && response.recommendations.length > 0 ? (
-                      <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
+                      <>
+                        {availableFlowerTags.length > 0 ? (
+                          <div className="mb-6 rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-4">
+                            <div className="mb-3 flex flex-wrap items-center gap-3">
+                              <p className="text-sm font-semibold text-[color:var(--ink)]">依花材篩選</p>
+                              <span className="text-xs text-[color:var(--muted)]">僅顯示推薦卡片中包含的花朵</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className={`h-9 rounded-full px-4 text-xs font-semibold transition-all ${selectedFlower === "全部" ? "bg-[color:var(--accent)] text-white" : "bg-[color:var(--background)] text-[color:var(--foreground)] border border-[color:var(--line)]"}`}
+                                onClick={() => setSelectedFlower("全部")}
+                              >
+                                全部
+                              </button>
+                              {availableFlowerTags.map((flower) => (
+                                <button
+                                  key={flower}
+                                  type="button"
+                                  className={`h-9 rounded-full px-4 text-xs font-semibold transition-all ${selectedFlower === flower ? "bg-[color:var(--accent)] text-white" : "bg-[color:var(--background)] text-[color:var(--foreground)] border border-[color:var(--line)]"}`}
+                                  onClick={() => setSelectedFlower(flower)}
+                                >
+                                  {flower}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        <CardGrid cards={filteredCards} />
+                      </>
                     ) : (
                       <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
                     )}
