@@ -10,7 +10,6 @@ import { AuthOverlay } from "@/components/AuthOverlay";
 import { User as UserIcon, LogOut, ChevronDown, LogIn, Layout } from "lucide-react";
 
 const nav = [
-  { href: "/cards", label: "作品" },
   { href: "/floriography", label: "花語資料庫" },
   { href: "/recommend", label: "情境推薦" },
   { href: "/recognize", label: "花朵辨識" },

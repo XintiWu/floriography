@@ -30,16 +30,32 @@ export async function POST(req: Request) {
     try {
       recog = await recognizeFlowerFromBuffer(buf!);
     } catch (err) {
-      if (err instanceof Error && err.message === "GeminiServerBusy") {
-        serverBusy = true;
-        recog = {
-          name: "",
-          confidence: 0,
-          engine: "gemini:server-busy",
-        };
-      } else {
-        throw err;
+      if (err instanceof Error) {
+        if (err.message === "GeminiServerBusy") {
+          serverBusy = true;
+          recog = {
+            name: "",
+            confidence: 0,
+            engine: "gemini:server-busy",
+          };
+        } else if (err.message === "GeminiApiKeyMissing") {
+          return NextResponse.json(
+            { error: "api_key_missing", message: "請先在伺服器上設定 GEMINI_API_KEY 環境變數以啟用花朵辨識服務。" },
+            { status: 400 }
+          );
+        } else if (err.message === "GeminiInvalidResponse") {
+          return NextResponse.json(
+            { error: "invalid_response", message: "無法解析辨識服務的回傳結果。" },
+            { status: 502 }
+          );
+        } else if (err.message === "GeminiApiError") {
+          return NextResponse.json(
+            { error: "api_error", message: "呼叫辨識服務時發生錯誤。" },
+            { status: 502 }
+          );
+        }
       }
+      throw err;
     }
 
     const cards = await getCards();

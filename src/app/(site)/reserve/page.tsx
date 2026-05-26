@@ -35,7 +35,7 @@ export default async function ReservePage({
               你正在詢問作品：
               <Link
                 className="ml-2 font-semibold hover:underline"
-                href={`/cards/${card.id}`}
+                href="/floriography"
               >
                 {card.title}
               </Link>
@@ -48,8 +48,8 @@ export default async function ReservePage({
           ) : (
             <p className="mt-5 text-sm text-[color:var(--muted)]">
               還沒決定要哪一張？可以先{" "}
-              <Link className="underline" href="/cards">
-                逛作品
+              <Link className="underline" href="/floriography">
+                逛花語
               </Link>{" "}
               或{" "}
               <Link className="underline" href="/recommend">

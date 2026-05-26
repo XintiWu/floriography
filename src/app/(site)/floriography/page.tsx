@@ -8,7 +8,8 @@ export const metadata: Metadata = {
 };
 
 export default async function FloriographyPage() {
-  const [flowers, cards] = await Promise.all([getFlowers(), getCards()]);
+  const flowers = await getFlowers();
+  const cards = await getCards();
 
   return (
     <main className="flex-1">

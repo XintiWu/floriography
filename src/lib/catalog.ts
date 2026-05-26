@@ -1,7 +1,9 @@
 import type { Card, Flower } from "@/lib/types";
+import { getCardFromDataById, getCardsFromData } from "@/lib/cardsData";
+import { getFlowersFromData } from "@/lib/flowersData";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { sampleCards, sampleFlowers } from "@/lib/sampleData";
-import { isDbConfigured, query } from "@/lib/db";
+import { isDbConfigured } from "@/lib/dbConfig";
+import { query } from "@/lib/db";
 
 type CardRow = {
   id: string;
@@ -59,7 +61,7 @@ function mapFlower(row: FlowerRow): Flower {
 }
 
 function getTagsForDesign(id: string, name: string, description: string) {
-  const sample = sampleCards.find(c => c.id === id);
+  const sample = getCardsFromData().find(c => c.id === id);
   if (sample) {
     return sample.tags;
   }
@@ -90,7 +92,7 @@ function getTagsForDesign(id: string, name: string, description: string) {
 }
 
 function enrichCard(row: any): Card {
-  const sample = sampleCards.find(c => c.id === row.id);
+  const sample = getCardsFromData().find(c => c.id === row.id);
   const description = row.description || "";
   
   return {
@@ -108,105 +110,198 @@ function enrichCard(row: any): Card {
 }
 
 export async function getCards(): Promise<Card[]> {
-  try {
-    const result = await query(`
-      SELECT * FROM designs 
-      ORDER BY created_at DESC
-    `);
-    
-    if (result.rows.length === 0) return sampleCards;
-    return result.rows.map(enrichCard);
-  } catch (err) {
-    console.error("Failed to fetch cards from OCI:", err);
-    return sampleCards;
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT * FROM designs 
+        ORDER BY created_at DESC
+      `);
+      
+      if (result.rows.length > 0) {
+        return result.rows.map(enrichCard);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cards from OCI:", err);
+    }
   }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        return (data as CardRow[]).map(mapCard);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cards from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getCardsFromData();
 }
 
 export async function getCardById(id: string): Promise<Card | null> {
-  try {
-    const result = await query(`
-      SELECT * FROM designs 
-      WHERE id = $1
-    `, [id]);
-    
-    if (result.rows.length === 0) {
-      return sampleCards.find(c => c.id === id) || null;
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT * FROM designs 
+        WHERE id = $1
+      `, [id]);
+      
+      if (result.rows.length > 0) {
+        return enrichCard(result.rows[0]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch card by ID from OCI:", err);
     }
-    
-    return enrichCard(result.rows[0]);
-  } catch (err) {
-    console.error("Failed to fetch card by ID from OCI:", err);
-    return sampleCards.find(c => c.id === id) || null;
   }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("cards")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (!error && data) {
+        return mapCard(data as CardRow);
+      }
+    } catch (err) {
+      console.error("Failed to fetch card by ID from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getCardFromDataById(id);
 }
 
 export async function getFlowers(): Promise<Flower[]> {
-  try {
-    const result = await query(`
-      SELECT DISTINCT ON (name) id, name, url, metadata 
-      FROM assets 
-      WHERE type = 'flower' AND is_active = true 
-      ORDER BY name, id
-    `);
-    
-    if (result.rows.length === 0) return sampleFlowers;
-
-    return result.rows.map((row: any) => {
-      const meta = row.metadata || {};
-      let meanings: string[] = [];
-      if (typeof meta.meaning === "string") {
-        meanings = meta.meaning.split(/[、,，\s]+/).filter(Boolean);
-      } else if (Array.isArray(meta.meaning)) {
-        meanings = meta.meaning;
-      }
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT DISTINCT ON (name) id, name, url, metadata 
+        FROM assets 
+        WHERE type = 'flower' AND is_active = true 
+        ORDER BY name, id
+      `);
       
-      return {
-        id: row.id,
-        name: row.name,
-        meanings: meanings.length > 0 ? meanings : ["祝福"],
-        story: meta.description || undefined,
-        imageUrl: row.url || undefined,
-        scientificName: meta.scientificName || undefined,
-        relatedTags: meanings
-      };
-    });
-  } catch (err) {
-    console.error("Failed to fetch flowers from OCI:", err);
-    return sampleFlowers;
+      if (result.rows.length > 0) {
+        return result.rows.map((row: any) => {
+          const meta = row.metadata || {};
+          let meanings: string[] = [];
+          if (typeof meta.meaning === "string") {
+            meanings = meta.meaning.split(/[、,，\s]+/).filter(Boolean);
+          } else if (Array.isArray(meta.meaning)) {
+            meanings = meta.meaning;
+          }
+          
+          return {
+            id: row.id,
+            name: row.name,
+            meanings: meanings.length > 0 ? meanings : ["祝福"],
+            story: meta.description || undefined,
+            imageUrl: row.url || undefined,
+            scientificName: meta.scientificName || undefined,
+            relatedTags: meanings
+          };
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch flowers from OCI:", err);
+    }
   }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("flowers")
+        .select("*")
+        .order("name", { ascending: true })
+        .limit(300);
+      if (!error && data) {
+        return (data as FlowerRow[]).map(mapFlower);
+      }
+    } catch (err) {
+      console.error("Failed to fetch flowers from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getFlowersFromData();
 }
 
 export async function getFlowerById(id: string): Promise<Flower | null> {
-  try {
-    const result = await query(`
-      SELECT * FROM assets 
-      WHERE type = 'flower' AND id = $1
-    `, [id]);
-    
-    if (result.rows.length === 0) {
-      return sampleFlowers.find(f => f.id === id) || null;
-    }
-    
-    const row = result.rows[0];
-    const meta = row.metadata || {};
-    let meanings: string[] = [];
-    if (typeof meta.meaning === "string") {
-      meanings = meta.meaning.split(/[、,，\s]+/).filter(Boolean);
-    } else if (Array.isArray(meta.meaning)) {
-      meanings = meta.meaning;
-    }
-    
-    return {
-      id: row.id,
-      name: row.name,
-      meanings: meanings.length > 0 ? meanings : ["祝福"],
-      story: meta.description || undefined,
-      imageUrl: row.url || undefined,
-      scientificName: meta.scientificName || undefined,
-      relatedTags: meanings
-    };
-  } catch (err) {
-    console.error("Failed to fetch flower by ID from OCI:", err);
-    return sampleFlowers.find(f => f.id === id) || null;
+  let nameFromSlug: string | null = null;
+  if (id.startsWith("flower-")) {
+    try {
+      nameFromSlug = decodeURIComponent(id.substring(7));
+    } catch (e) {}
   }
+
+  // 1. Try OCI Database if configured
+  if (isDbConfigured()) {
+    try {
+      const result = await query(`
+        SELECT * FROM assets 
+        WHERE type = 'flower' AND (id = $1 OR name = $1 OR ($2::text IS NOT NULL AND name = $2))
+      `, [id, nameFromSlug]);
+      
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        const meta = row.metadata || {};
+        let meanings: string[] = [];
+        if (typeof meta.meaning === "string") {
+          meanings = meta.meaning.split(/[、,，\s]+/).filter(Boolean);
+        } else if (Array.isArray(meta.meaning)) {
+          meanings = meta.meaning;
+        }
+        
+        return {
+          id: row.id,
+          name: row.name,
+          meanings: meanings.length > 0 ? meanings : ["祝福"],
+          story: meta.description || undefined,
+          imageUrl: row.url || undefined,
+          scientificName: meta.scientificName || undefined,
+          relatedTags: meanings
+        };
+      }
+    } catch (err) {
+      console.error("Failed to fetch flower by ID from OCI:", err);
+    }
+  }
+
+  // 2. Try Supabase
+  const supabase = createSupabaseServerClient();
+  if (supabase) {
+    try {
+      let query = supabase.from("flowers").select("*");
+      if (nameFromSlug) {
+        query = query.or(`id.eq."${id}",name.eq."${nameFromSlug}"`);
+      } else {
+        query = query.eq("id", id);
+      }
+      const { data, error } = await query.maybeSingle();
+      if (!error && data) {
+        return mapFlower(data as FlowerRow);
+      }
+    } catch (err) {
+      console.error("Failed to fetch flower by ID from Supabase:", err);
+    }
+  }
+
+  // 3. Fallback to local data
+  return getFlowersFromData().find((f) => f.id === id || (nameFromSlug && f.name === nameFromSlug)) ?? null;
 }

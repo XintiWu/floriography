@@ -2,9 +2,29 @@ import Link from "next/link";
 import { ScrollyHero } from "@/components/home/scrolly-hero/ScrollyHero";
 import { Container } from "@/components/Container";
 import { getCards } from "@/lib/catalog";
+import { ServiceOverview } from "../../components/home/ServiceOverview";
+import { HomeHighlights } from "@/components/home/HomeHighlights";
 
 export default async function Home() {
   const cards = await getCards();
+  const highlightCards = (() => {
+    const picked: typeof cards = [];
+    const seen = new Set<string>();
+    for (const c of cards) {
+      const key = (c.title ?? "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      picked.push(c);
+      if (picked.length >= 3) break;
+    }
+    if (picked.length >= 3) return picked;
+    // fallback: 補滿 3 張（即使重複標題）
+    for (const c of cards) {
+      if (picked.length >= 3) break;
+      if (!picked.some((x) => x.id === c.id)) picked.push(c);
+    }
+    return picked;
+  })();
   return (
     <main className="flex flex-1 flex-col">
       <ScrollyHero />
@@ -21,50 +41,20 @@ export default async function Home() {
               </h2>
             </div>
             <Link
-              href="/cards"
+              href="/floriography"
               className="text-sm font-semibold tracking-wide hover:underline"
             >
               查看全部 →
             </Link>
           </div>
 
-          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {cards.slice(0, 3).map((card) => (
-              <Link
-                key={card.id}
-                href={`/cards/${card.id}`}
-                className="group bg-[color:var(--card)] p-8 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold tracking-wide">
-                      {card.title}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--muted)]">
-                      {card.status === "available"
-                        ? `NT$ ${card.priceTwd}`
-                        : card.status === "sold"
-                          ? "已售出"
-                          : "可客製委託"}
-                    </p>
-                  </div>
-                  <span className="border border-[color:var(--line)] px-3 py-1.5 text-[10px] tracking-widest uppercase text-[color:var(--muted)]">
-                    {card.tags.moods[0] ?? "心意"}
-                  </span>
-                </div>
-                <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)]">
-                  {card.blurb}
-                </p>
-                <p className="mt-8 text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--accent)]">
-                  OPEN →
-                </p>
-              </Link>
-            ))}
-          </div>
+          <HomeHighlights cards={highlightCards} />
         </Container>
       </section>
 
-      <section className="border-t border-[color:var(--line)] py-24 sm:py-32">
+      <ServiceOverview />
+
+      <section className="py-24 sm:py-32">
         <Container>
           <div className="grid gap-12 md:grid-cols-12 md:items-start">
             <div className="md:col-span-5">

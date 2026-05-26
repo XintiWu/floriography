@@ -32,7 +32,7 @@ export default function RecommendPage() {
           <div className="mt-3 flex items-center gap-3">
             <div className="h-px w-14 bg-[color:var(--accent-2)]/70" />
             <p className="text-sm leading-7 text-[color:var(--muted)]">
-              依場合、情緒、色系與預算，挑出最接近的作品並列出推薦理由。
+              左側輸入情境由 AI（Gemini，本機 Ollama 備援）解析並推薦；右欄可微調對象、場合、花語等後「重新生成」。
             </p>
           </div>
         </Container>

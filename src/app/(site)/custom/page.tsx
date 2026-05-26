@@ -25,7 +25,7 @@ export default function CustomPage() {
             <Button href="/reserve" size="lg">
               送出委託
             </Button>
-            <Button href="/cards" size="lg" variant="outline">
+            <Button href="/floriography" size="lg" variant="outline">
               先看現有作品
             </Button>
           </div>

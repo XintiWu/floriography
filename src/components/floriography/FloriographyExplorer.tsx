@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Flower, Card } from "@/lib/types";
+import {
+  getFlowerMeaningLabels,
+  resolveFlowerMeanings,
+} from "@/lib/flowerMeanings";
+import { resolveFlowerStory } from "@/lib/flowerStory";
+import { getFlowerSpeciesImageUrl } from "@/lib/flowerSpeciesImage";
+import { getCardStoryText } from "@/lib/cardText";
 import { authService } from "@/services/authService";
 
 export function FloriographyExplorer({
@@ -14,8 +21,6 @@ export function FloriographyExplorer({
   flowers: Flower[];
   cards: Card[];
 }) {
-  const router = useRouter();
-
   // Deduplicate flowers from initial list to prevent UI duplication if any
   const flowers = useMemo(() => {
     const seen = new Set<string>();
@@ -29,10 +34,11 @@ export function FloriographyExplorer({
   const [searchMode, setSearchMode] = useState<"flower" | "meaning" | "favorite">("flower");
   const [selectedTag, setSelectedTag] = useState<string>("全部");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [activeFlowerId, setActiveFlowerId] = useState<string>(
-    flowers[0]?.id ?? ""
-  );
+  const [activeFlowerId, setActiveFlowerId] = useState<string>("");
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [brokenFlowerImages, setBrokenFlowerImages] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const [user, setUser] = useState<any>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -91,6 +97,8 @@ export function FloriographyExplorer({
 
   // 過濾花卉清單
   const filteredFlowers = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+
     return flowers.filter((f) => {
       if (searchMode === "favorite") {
         return favorites.includes(f.id);
@@ -102,11 +110,14 @@ export function FloriographyExplorer({
         f.meanings.includes(selectedTag) ||
         f.relatedTags?.includes(selectedTag);
 
+      const labels = resolveFlowerMeanings(f.name, f.meanings);
+      const storyText = resolveFlowerStory(f.name) ?? f.story ?? "";
+
       const matchQuery =
-        !searchQuery.trim() ||
-        f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        f.meanings.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (f.story && f.story.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        f.name.toLowerCase().includes(q) ||
+        labels.some((m) => m.toLowerCase().includes(q)) ||
+        storyText.toLowerCase().includes(q);
 
       return matchTag && matchQuery;
     });
@@ -116,6 +127,24 @@ export function FloriographyExplorer({
   const activeFlower = useMemo(() => {
     return flowers.find((f) => f.id === activeFlowerId) ?? filteredFlowers[0] ?? flowers[0];
   }, [flowers, filteredFlowers, activeFlowerId]);
+
+  // Initialize activeFlowerId to first flower if not set
+  useEffect(() => {
+    if (!activeFlowerId && flowers.length > 0) {
+      setActiveFlowerId(flowers[0].id);
+    }
+  }, [flowers, activeFlowerId]);
+
+  /** 核心花語意涵：以 flower_meanings.json 為準，列出全部 */
+  const activeFlowerMeanings = useMemo(() => {
+    if (!activeFlower) return ["祝福"];
+    return resolveFlowerMeanings(activeFlower.name, activeFlower.meanings);
+  }, [activeFlower]);
+
+  const activeFlowerStory = useMemo(() => {
+    if (!activeFlower) return undefined;
+    return resolveFlowerStory(activeFlower.name) ?? activeFlower.story;
+  }, [activeFlower]);
 
   // 當過濾名單改變，且當前選中花卉不在過濾名單中，自動設為過濾名單的第一個
   useEffect(() => {
@@ -206,7 +235,7 @@ export function FloriographyExplorer({
     if (directMatches.length > 0) return directMatches;
 
     // 若無直接對應，透過花語與情緒標籤做次級關聯
-    const relatedMoods = activeFlower.meanings;
+    const relatedMoods = activeFlowerMeanings;
     const secondaryMatches = cards.filter((c) =>
       c.tags.moods.some((m) => relatedMoods.includes(m)) ||
       c.tags.occasions.some((o) => relatedMoods.includes(o))
@@ -216,15 +245,14 @@ export function FloriographyExplorer({
 
     // 回退展示前幾張精選卡片
     return cards.slice(0, 4);
-  }, [cards, activeFlower]);
+  }, [cards, activeFlower, activeFlowerMeanings]);
 
   return (
     <div className="flex flex-col gap-8">
       {/* 頂部搜尋與過濾列 */}
       <div className="flex flex-col gap-6 border-b border-[color:var(--line)] pb-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* 搜尋框 */}
-          <div className="relative w-full md:w-80">
+        <div className="flex flex-col gap-4">
+          <div className="relative w-full md:max-w-md">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-[color:var(--muted)]">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -234,7 +262,7 @@ export function FloriographyExplorer({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋花名、花語或故事寓意..."
+              placeholder="搜尋花種名稱..."
               className="h-11 w-full border border-[color:var(--line)] bg-[color:var(--card)]/60 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all backdrop-blur"
             />
             {searchQuery && (
@@ -297,42 +325,8 @@ export function FloriographyExplorer({
                 {filteredFlowers.length > 0 ? (
                   filteredFlowers.map((f) => {
                     const isActive = activeFlowerId === f.id;
-                    
-                    const getFlowerImage = (name: string) => {
-                      if (name.includes("繡球花")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
-                      if (name.includes("香水合歡")) return "/FlowerDB_nobg/images/IMG_9631_processed.png";
-                      if (name.includes("星辰花")) return "/FlowerDB_nobg/images/IMG_20260501_135711228_processed.png";
-                      if (name.includes("卡斯比亞")) return "/FlowerDB_nobg/images/IMG_20260501_135615974_processed.png";
-                      if (name.includes("月季")) return "/FlowerDB_nobg/images/IMG_9684_processed.png";
-                      if (name.includes("玫瑰")) return "/FlowerDB_nobg/images/IMG_9713_processed.png";
-                      if (name.includes("九重葛")) return "/FlowerDB_nobg/images/IMG_9708_processed.png";
-                      if (name.includes("仙丹花")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                      if (name.includes("台灣欒樹")) return "/FlowerDB_nobg/images/IMG_9714_processed.png";
-                      if (name.includes("細葉雪茄花")) return "/FlowerDB_nobg/images/IMG_9702_processed.png";
-                      if (name.includes("落羽杉")) return "/FlowerDB_nobg/images/IMG_9711_processed.png";
-                      if (name.includes("鐵刀木")) return "/FlowerDB_nobg/images/IMG_9709_processed.png";
-                      if (name.includes("兔仔菜")) return "/FlowerDB_nobg/images/IMG_9681_processed.png";
-                      if (name.includes("大花咸豐草")) return "/FlowerDB_nobg/images/IMG_20260501_134509973_processed.png";
-                      if (name.includes("櫻花")) return "/FlowerDB_nobg/images/IMG_9606_processed.png";
-                      if (name.includes("馬蘭")) return "/FlowerDB_nobg/images/IMG_9572_processed.png";
-                      if (name.includes("夏堇")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
-                      if (name.includes("金魚草")) return "/FlowerDB_nobg/images/IMG_9647_processed.png";
-                      if (name.includes("野毛蕨")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                      if (name.includes("風鈴花")) return "/FlowerDB_nobg/images/IMG_9636_processed.png";
-                      if (name.includes("針葉櫻桃")) return "/FlowerDB_nobg/images/IMG_8721_processed.png";
-                      if (name.includes("黃蝴蝶")) return "/FlowerDB_nobg/images/IMG_9683_processed.png";
-                      if (name.includes("金英樹")) return "/FlowerDB_nobg/images/IMG_9685_processed.png";
-                      if (name.includes("南美朱槿")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
-                      if (name.includes("美國肖楠")) return "/FlowerDB_nobg/images/IMG_8880_processed.png";
-                      if (name.includes("構樹")) return "/FlowerDB_nobg/images/IMG_9625_processed.png";
-                      if (name.includes("垂枝茉莉")) return "/FlowerDB_nobg/images/IMG_8737_processed.png";
-                      if (name.includes("泡盛草")) return "/FlowerDB_nobg/images/IMG_20260501_142640520_processed.png";
-                      if (name.includes("天使花")) return "/FlowerDB_nobg/images/IMG_9626_processed.png";
-                      if (name.includes("立鶴花")) return "/FlowerDB_nobg/images/IMG_8877_processed.png";
-                      if (name.includes("新幾內亞鳳仙花")) return "/FlowerDB_nobg/images/IMG_20260501_124640378_processed.png";
-                      if (name.includes("蒜香藤")) return "/FlowerDB_nobg/images/IMG_9689_processed.png";
-                      return "/FlowerDB_nobg/images/IMG_8705_processed.png";
-                    };
+                    const imageSrc = getFlowerSpeciesImageUrl(f.name);
+                    const imageBroken = brokenFlowerImages.has(f.id);
 
                     return (
                       <button
@@ -349,11 +343,27 @@ export function FloriographyExplorer({
                               : "bg-[color:var(--card)] border border-[color:var(--line)] group-hover:border-[color:var(--accent)]/50 group-hover:bg-[color:var(--accent)]/5"
                           }`}
                         >
-                          <img 
-                            src={f.imageUrl || getFlowerImage(f.name)} 
-                            alt={f.name} 
-                            className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500" 
-                          />
+                          {imageSrc && !imageBroken ? (
+                            <img
+                              src={imageSrc}
+                              alt={f.name}
+                              className="w-full h-full object-cover scale-[1.3] group-hover:scale-[1.4] transition-transform duration-500"
+                              onError={() =>
+                                setBrokenFlowerImages((prev) => {
+                                  const next = new Set(prev);
+                                  next.add(f.id);
+                                  return next;
+                                })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className="text-2xl text-[color:var(--accent)]/70"
+                              aria-hidden
+                            >
+                              ❀
+                            </span>
+                          )}
                         </div>
                         <span className={`text-[11px] font-semibold tracking-widest ${isActive ? "text-[color:var(--accent)]" : "text-[color:var(--muted)] group-hover:text-[color:var(--foreground)]"}`}>
                           {f.name}
@@ -403,7 +413,7 @@ export function FloriographyExplorer({
       {/* 核心雙欄佈局 */}
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
         
-        {/* 左側欄：選中的花語展示中心 (對應 NFT Reference 圖左側 Top NFT 動態圈) */}
+        {/* 左側欄：選中的花語展示中心 */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="relative border border-[color:var(--line)] bg-[color:var(--card)] p-7 transition-all duration-300 overflow-hidden group">
             {/* 背景點綴光暈 */}
@@ -447,7 +457,7 @@ export function FloriographyExplorer({
               </div>
             </div>
 
-            {/* 視覺焦點：動態環形設計 (向使用者的 Reference 圓形儀表板致敬) */}
+            {/* 視覺焦點：動態環形設計 */}
             <div className="my-8 flex flex-col items-center justify-center relative py-6">
               {/* 外圈旋轉光環裝飾 */}
               <div className="absolute w-52 h-52 rounded-full border border-dashed border-[color:var(--accent)]/30 animate-[spin_30s_linear_infinite]" />
@@ -470,19 +480,19 @@ export function FloriographyExplorer({
                     <p className="mt-1 text-2xl font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
                       {activeFlower?.name ?? "花藝"}
                     </p>
-                    {activeFlower?.meanings?.[0] && (
+                    {activeFlowerMeanings[0] && (
                       <span className="mt-2 bg-[color:var(--accent-2)] px-2.5 py-0.5 text-[10px] font-bold text-[color:var(--paper)] tracking-widest">
-                        #{activeFlower.meanings[0]}
+                        #{activeFlowerMeanings[0]}
                       </span>
                     )}
                   </motion.div>
                 </AnimatePresence>
               </div>
 
-              {/* 浮動的裝飾小標記 (模仿 NFT 圖面左上/右下的浮動小指標) */}
+              {/* 浮動的裝飾小標記 */}
               <div className="absolute top-2 left-6 border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
                 <span className="text-[color:var(--muted)]">象徵 </span>
-                <span className="font-bold text-[color:var(--accent)]">{activeFlower?.meanings?.length ?? 0} 種意境</span>
+                <span className="font-bold text-[color:var(--accent)]">{activeFlowerMeanings.length} 種意境</span>
               </div>
               <div className="absolute bottom-2 right-6 border border-[color:var(--line)] bg-[color:var(--card)]/80 px-2.5 py-1 text-[10px] font-medium tracking-wide shadow-sm backdrop-blur">
                 <span className="text-[color:var(--muted)]">適性 </span>
@@ -506,7 +516,7 @@ export function FloriographyExplorer({
                       核心花語意涵
                     </span>
                     <div className="flex flex-wrap gap-1.5">
-                      {(activeFlower?.meanings ?? ["祝福"]).map((m, i) => (
+                      {activeFlowerMeanings.map((m, i) => (
                         <span
                           key={i}
                           className="inline-flex items-center bg-[color:var(--foreground)]/[0.04] dark:bg-[color:var(--foreground)]/[0.08] px-3 py-1.5 text-xs font-medium tracking-wide text-[color:var(--foreground)]"
@@ -519,10 +529,10 @@ export function FloriographyExplorer({
 
                   <div>
                     <span className="text-xs font-semibold text-[color:var(--muted)] tracking-wider block mb-1">
-                      適合的花與典故故事
+                      花材介紹
                     </span>
-                    <p className="text-sm leading-relaxed text-[color:var(--muted)] line-clamp-6">
-                      {activeFlower?.story ??
+                    <p className="text-sm leading-relaxed text-[color:var(--muted)] whitespace-pre-line">
+                      {activeFlowerStory ??
                         `${activeFlower?.name} 帶有典雅純淨的姿態，花語訴說著深邃動人的情感與真摯期盼。適合用來餽贈重要之人，傳遞無法言喻的感動。`}
                     </p>
                   </div>
@@ -539,6 +549,7 @@ export function FloriographyExplorer({
             <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
               {filteredFlowers.map((f) => {
                 const isSelected = f.id === activeFlower?.id;
+                const listMeanings = resolveFlowerMeanings(f.name, f.meanings);
                 return (
                   <button
                     key={f.id}
@@ -551,8 +562,8 @@ export function FloriographyExplorer({
                   >
                     <div>
                       <p className="text-xs font-medium tracking-wide">{f.name}</p>
-                      <p className="text-[11px] text-[color:var(--muted)] truncate max-w-[180px] mt-0.5">
-                        {f.meanings.join("、")}
+                      <p className="text-[11px] text-[color:var(--muted)] line-clamp-2 max-w-[180px] mt-0.5">
+                        {listMeanings.join("、")}
                       </p>
                     </div>
                     <span className="text-xs">
@@ -570,7 +581,7 @@ export function FloriographyExplorer({
           </div>
         </div>
 
-        {/* 右側欄：推薦卡片清單 (對應 NFT Reference 圖右側 Rare NFT 高光卡片網格) */}
+        {/* 右側欄：推薦卡片清單 */}
         <div className="lg:col-span-7 flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
             <div>
@@ -588,7 +599,6 @@ export function FloriographyExplorer({
 
           <div className="grid gap-5 sm:grid-cols-2">
             {suitableCards.map((c, idx) => {
-              // 模擬首張卡片為「極致推薦 (高光 Highlight)」(呼應使用者截圖中帶有藍色光環的中心 NFT)
               const isHighlyRecommended = idx === 0;
 
               return (
@@ -600,7 +610,6 @@ export function FloriographyExplorer({
                       : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
                   }`}
                 >
-                  {/* 若是高光推薦，加入一個精緻的 Badge */}
                   {isHighlyRecommended && (
                     <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
                       最佳適性推薦
@@ -615,7 +624,7 @@ export function FloriographyExplorer({
                       </div>
                       <div>
                         <p className="text-[9px] text-[color:var(--muted)] uppercase tracking-wider">
-                          花材調性
+                          主要花材
                         </p>
                         <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate max-w-[80px]">
                           {c.tags.flowers[0] ?? activeFlower?.name}
@@ -633,82 +642,105 @@ export function FloriographyExplorer({
                     </div>
                   </div>
 
-                  {/* 視覺卡片主體 (圖片預覽區) */}
-                  <div className="relative w-full aspect-[4/3] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] border border-[color:var(--line)] overflow-hidden mb-4 group-hover:shadow-inner transition-all flex items-center justify-center">
-                    {/* 裝飾性幾何/花紋背景模擬精緻美感 */}
-                    <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,_var(--line)_1px,_transparent_1px)] [background-size:16px_16px]" />
-                    <div className="absolute -right-10 -bottom-10 w-32 h-32 rounded-full bg-[color:var(--accent)]/5 blur-xl" />
-                    
-                    {/* 替換為花的實體圖片 */}
-                    <img
-                      src={getCardImage(c)}
-                      alt={c.title}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 z-0"
-                    />
-                    {/* 漸變遮罩以確保文字清晰度 */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/5 z-10" />
-
-                    {/* 卡片標題與主視覺字樣 */}
-                    <div className="relative z-20 text-center p-4">
-                      <p className="text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-white group-hover:scale-105 transition-transform duration-300">
-                        {c.title}
-                      </p>
-                      <p className="text-[11px] text-white/80 mt-1 tracking-wide">
-                        {c.size ?? "純手工精緻壓花"}
-                      </p>
+                  {/* 作品圖：完整顯示不裁切（與情境推薦一致） */}
+                  <div className="mb-4">
+                    {c.images[0] ? (
+                      <div className="relative w-full overflow-hidden rounded-lg border border-[color:var(--line)] bg-[color:var(--background)]">
+                        <span className="absolute top-2 right-2 z-10 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)]/90 px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] backdrop-blur">
+                          #{c.tags.moods[0] ?? "溫暖"}
+                        </span>
+                        <Image
+                          src={c.images[0]}
+                          alt={c.title}
+                          width={c.imageWidth ?? 900}
+                          height={c.imageHeight ?? 1200}
+                          className="h-auto w-full object-contain"
+                          sizes="(max-width: 640px) 100vw, 50vw"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[160px] flex-col items-center justify-center rounded-lg border border-[color:var(--line)] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] p-4">
+                        <p className="text-center text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
+                          {c.title}
+                        </p>
+                        <p className="mt-1 text-[11px] text-[color:var(--muted)]">
+                          {c.size ?? "純手工精緻壓花"}
+                        </p>
+                      </div>
+                    )}
+                    <div className="mt-3 flex items-start justify-between gap-2 border-b border-[color:var(--line)]/50 pb-3">
+                      <div>
+                        <p className="text-sm font-[family-name:var(--font-display)] font-bold tracking-wide line-clamp-2">
+                          {c.title}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-[color:var(--muted)]">
+                          {c.size ?? "植物標本"}
+                        </p>
+                      </div>
                     </div>
-
-                    {/* 懸浮預覽小標籤 */}
-                    <span className="absolute bottom-2 left-2 bg-black/60 backdrop-blur px-2 py-0.5 text-[9px] font-semibold text-white/90 border border-white/10 z-20">
-                      #{c.tags.moods[0] ?? "溫暖"}
-                    </span>
                   </div>
 
                   {/* 動態內嵌展開的作品完整規格詳情 (不跳轉頁面) */}
-                  {expandedCardId === c.id && (
-                    <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
-                      <div>
-                        <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
-                          作品設計理念 / 故事介紹
-                        </span>
-                        <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5">
-                          {c.description ||
-                            "設計師精心挑選高質感實體壓花，揉合純粹自然的美學視角，透過多層次手工藝將植物的永恆姿態溫柔封存。"}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
-                        <div>
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">適用場合</span>
-                          <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                            {c.tags.occasions.join("、") || "通用送禮"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">傳遞心意</span>
-                          <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                            {c.tags.moods.join("、") || "溫暖期盼"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {c.tags.colors?.length > 0 && (
-                        <div className="pt-0.5">
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">視覺主色系</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {c.tags.colors.map((colorItem) => (
-                              <span
-                                key={colorItem}
-                                className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
-                              >
-                                {colorItem}
-                              </span>
-                            ))}
+                  <AnimatePresence initial={false}>
+                    {expandedCardId === c.id ? (
+                      <motion.div
+                        key="detail"
+                        initial={{ height: 0, opacity: 0, y: 6 }}
+                        animate={{ height: "auto", opacity: 1, y: 0 }}
+                        exit={{ height: 0, opacity: 0, y: 6 }}
+                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                        className="mb-4 overflow-hidden"
+                      >
+                        <div className="border-t border-[color:var(--line)]/60 pt-3 text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
+                          <div>
+                            <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
+                              作品設計理念 / 故事介紹
+                            </span>
+                            <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
+                              {getCardStoryText(c)}
+                            </p>
                           </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
+                            <div>
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                適用場合
+                              </span>
+                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                {c.tags.occasions.join("、") || "通用送禮"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                傳遞心意
+                              </span>
+                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                {c.tags.moods.join("、") || "溫暖期盼"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {c.tags.colors?.length > 0 && (
+                            <div className="pt-0.5">
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                視覺主色系
+                              </span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {c.tags.colors.map((colorItem) => (
+                                  <span
+                                    key={colorItem}
+                                    className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
+                                  >
+                                    {colorItem}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
 
                   {/* 價格列與計算式展示 */}
                   <div className="flex items-baseline justify-between border-t border-[color:var(--line)]/40 pt-3 mt-1">
@@ -725,16 +757,17 @@ export function FloriographyExplorer({
                     </div>
                   </div>
 
-                  {/* 底部按鈕列 (內嵌展開按鈕與預訂雙按鈕) */}
+                  {/* 底部按鈕列 */}
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setExpandedCardId((s) => (s === c.id ? null : c.id));
                       }}
                       className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
                         expandedCardId === c.id
-                          ? "border-[color:var(--accent-2)] bg-[color:var(--accent-2)]/10 text-[color:var(--accent-2)]"
+                          ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
                           : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
                       }`}
                     >

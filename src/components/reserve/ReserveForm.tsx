@@ -146,8 +146,8 @@ export function ReserveForm({ defaultCardId }: { defaultCardId?: string }) {
           。我們會用你留下的聯絡方式與你確認面交時間與成品細節。
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button href="/cards" variant="outline">
-            繼續逛作品
+          <Button href="/floriography" variant="outline">
+            繼續逛花語
           </Button>
           <Button href="/contact" variant="ghost">
             改用聯絡方式

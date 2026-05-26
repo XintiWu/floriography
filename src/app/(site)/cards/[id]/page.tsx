@@ -29,8 +29,8 @@ export default async function CardDetailPage({
     <main className="flex-1">
       <div className="border-b border-[color:var(--line)]">
         <Container className="py-6 text-sm text-[color:var(--muted)]">
-          <Link href="/cards" className="hover:underline">
-            作品藝廊
+          <Link href="/floriography" className="hover:underline">
+            花語資料庫
           </Link>{" "}
           / <span className="text-[color:var(--foreground)]">{card.title}</span>
         </Container>
