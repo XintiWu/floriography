@@ -14,8 +14,39 @@ export default function RecognizePage() {
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<"idle" | "uploading" | "generating" | "done">("idle");
   const [response, setResponse] = useState<any>(null);
-  const [selectedFlower, setSelectedFlower] = useState<string>("全部");
   const [error, setError] = useState<string | null>(null);
+  const STORAGE_KEY = "floriography_recognize_response_v1";
+
+  // Restore saved recognition result (if any)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          setResponse(parsed);
+          setPhase("done");
+        }
+      }
+    } catch (e) {
+      // ignore parse errors
+    }
+    // run only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist recognition result to localStorage
+  useEffect(() => {
+    try {
+      if (response) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(response));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [response]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setResponse(null);
@@ -102,28 +133,6 @@ export default function RecognizePage() {
     return response?.recommendations?.map((r: any) => r.card) ?? [];
   }, [response]);
 
-  const availableFlowerTags = useMemo(() => {
-    const set = new Set<string>();
-    recommendedCards.forEach((card: any) => {
-      const flowers = card?.tags?.flowers;
-      if (Array.isArray(flowers)) {
-        flowers.forEach((flower: string) => {
-          if (flower) set.add(flower);
-        });
-      }
-    });
-    return Array.from(set);
-  }, [recommendedCards]);
-
-  const filteredCards = useMemo(() => {
-    if (!selectedFlower || selectedFlower === "全部") {
-      return recommendedCards;
-    }
-    return recommendedCards.filter((card: any) =>
-      Array.isArray(card?.tags?.flowers) && card.tags.flowers.includes(selectedFlower)
-    );
-  }, [recommendedCards, selectedFlower]);
-
   const handleSubmit = async () => {
     if (!file) {
       setError("請先選擇一張花朵照片。 ");
@@ -161,6 +170,14 @@ export default function RecognizePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearSavedResult = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {}
+    setResponse(null);
+    setPhase("idle");
   };
 
   return (
@@ -263,7 +280,14 @@ export default function RecognizePage() {
 
             {(phase !== "idle") ? (
               <div className="rounded-4xl border border-[color:var(--line)] bg-[color:var(--background)] p-5 text-sm text-[color:var(--ink)]">
-                <div className="mb-6">
+                <div className="mb-6 relative">
+                  {phase === "done" && response ? (
+                    <div className="absolute right-0 top-0">
+                      <Button variant="ghost" onClick={clearSavedResult} className="text-sm">
+                        清除
+                      </Button>
+                    </div>
+                  ) : null}
                   <h2 className="text-lg font-semibold">辨識結果</h2>
                   <p className="mt-2 text-2xl font-bold text-[color:var(--accent)]">
                     {phase === "generating"
@@ -294,7 +318,6 @@ export default function RecognizePage() {
                         </div>
                         <div className="space-y-3 text-center">
                           <p className="text-lg font-semibold text-[color:var(--ink)]">正在辨識花朵與搜尋花卡...</p>
-                          {/* <p className="text-sm text-[color:var(--muted)]">請稍候，系統正在分析花朵特徵並準備推薦卡片。</p> */}
                         </div>
                       </div>
                       <div className="pointer-events-none absolute -left-10 top-12 h-24 w-24 rounded-full bg-[color:var(--accent-2)]/10 blur-3xl animate-float" />
@@ -321,7 +344,7 @@ export default function RecognizePage() {
                 ) : (
                   <>
                     {Array.isArray(response?.recommendations) && response.recommendations.length > 0 ? (
-                      <CardGrid cards={response.recommendations.map((r: any) => r.card)} />
+                      <CardGrid cards={recommendedCards} />
                     ) : (
                       <div className="text-sm text-[color:var(--muted)]">目前沒有推薦項目。</div>
                     )}
