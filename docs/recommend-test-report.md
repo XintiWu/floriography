@@ -166,21 +166,17 @@ BASE_URL=http://localhost:3000 ./scripts/test-recommend-api.sh
 
 ## 8. 合併呼叫後基準（2026-05-26）
 
-改版：`analyze` 單次 Ollama（`analyzeStoryWithOllama`）+ `llama3.2:3b` + `LLM_TOP_K=8`。
+改版：`analyze` 單次 Ollama + `llama3.2:3b` + 候選 **n 編號（1~8）** 取代 UUID。
 
-詳見 [`docs/recommend-benchmark.md`](recommend-benchmark.md)。摘要（暖機後）：
+詳見 [`docs/recommend-benchmark.md`](recommend-benchmark.md)、常用 prompt [`docs/recommend-prompts.md`](recommend-prompts.md)。
 
-| Prompt | analyze 耗時 | 備註 |
-|--------|-------------|------|
-| P1 媽媽生日 80元 | 25.6s | fields: 生日/祝福/80；多為補位 |
-| P2 受傷兄弟康復 | 23.5s | occasion 誤判生日；有 AI 理由 |
-| P3 畢業摯友粉色 | 20.6s | 欄位較完整 |
-| P4 紀念日老婆 | 23.4s | 欄位完整 |
-| P5 謝謝老師 | 28.8s | recipient 未解析 |
-| P6 特別禮物 | 80.3s | fields 空，全粗排 |
-| P1 refine | 44.9s | 單次推薦（本次較慢，可能模型排程） |
+| 指標 | 結果（暖機後） |
+|------|----------------|
+| 3 張皆 AI 成功率 | **6/6（100%）** |
+| analyze 耗時 | 約 **18–26s** |
+| refine（P1） | **21s**，3 張 AI |
 
-較改版前（雙次 LLM、7B 級）analyze 常 **60s+**；合併後多數 prompt **20–30s**。
+較初版合併（UUID cardId、常需補位）明顯改善；仍建議 `ollama serve` 常駐。
 
 ---
 

@@ -10,7 +10,8 @@
     "prebuild": "npm run build:catalog",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:parse-fields": "tsx scripts/test-parse-story-fields.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

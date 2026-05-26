@@ -3,6 +3,7 @@ import { extractJsonObject } from "@/lib/llmJson";
 import {
   MOOD_OPTIONS,
   OCCASION_OPTIONS,
+  coerceFieldsFromStory,
   sanitizeParsedFields,
   type ParsedStoryFields,
 } from "@/lib/parseStoryRules";
@@ -31,42 +32,85 @@ const PARSE_SCHEMA = z.object({
   flowerMeaning: z.string().optional(),
 });
 
+const recommendationItemSchema = z.object({
+  cardId: z.string(),
+  score: z.number(),
+  why: z.string().optional(),
+});
+
 const RECOMMEND_SCHEMA = z.object({
-  recommendations: z.array(
-    z.object({
-      cardId: z.string(),
-      score: z.number(),
-      why: z.string(),
-    })
-  ),
+  recommendations: z.array(recommendationItemSchema),
 });
 
 const ANALYZE_SCHEMA = PARSE_SCHEMA.extend({
-  recommendations: z.array(
-    z.object({
-      cardId: z.string(),
-      score: z.number(),
-      why: z.string(),
-    })
-  ),
+  recommendations: z.array(recommendationItemSchema),
 });
 
-function compactCandidates(candidates: CandidateSummary[]) {
-  return candidates.map((c) => ({
-    id: c.id,
-    t: c.title,
-    p: c.priceTwd,
-    f: c.flowers.join(","),
-    o: c.occasions.join(","),
-    m: c.moods.join(","),
-    c: c.colors.join(","),
-    b: c.blurb.slice(0, 60),
-  }));
+const DEFAULT_WHY = "依您的送禮情境，這張作品最貼近需求。";
+
+export function isPlaceholderWhy(why: string): boolean {
+  const t = why.trim();
+  if (!t) return true;
+  if (/^[.．…\-—_~～]+$/.test(t)) return true;
+  if (t === "..." || t === "…" || t === "無" || t === "N/A" || t === "n/a") return true;
+  return false;
 }
 
-function resolveCardId(rawId: string, allowedIds: string[]): string | null {
+function normalizeWhy(why: unknown, fallback = DEFAULT_WHY): string {
+  const text = typeof why === "string" ? why.trim() : String(why ?? "").trim();
+  if (isPlaceholderWhy(text)) return fallback;
+  return text || fallback;
+}
+
+export type CandidateSlotMaps = {
+  slotToUuid: Map<number, string>;
+  uuidToSlot: Map<string, number>;
+};
+
+/** 候選改用 1..N 編號，小模型較能穩定回傳 3 張 */
+export function buildCandidateSlotMaps(
+  candidates: CandidateSummary[]
+): CandidateSlotMaps {
+  const slotToUuid = new Map<number, string>();
+  const uuidToSlot = new Map<string, number>();
+  candidates.forEach((c, i) => {
+    const n = i + 1;
+    slotToUuid.set(n, c.id);
+    uuidToSlot.set(c.id, n);
+  });
+  return { slotToUuid, uuidToSlot };
+}
+
+function compactCandidatesForPrompt(
+  candidates: CandidateSummary[],
+  slots: CandidateSlotMaps
+) {
+  return candidates.map((c) => {
+    const n = slots.uuidToSlot.get(c.id) ?? 0;
+    return {
+      n,
+      t: c.title,
+      p: c.priceTwd,
+      f: c.flowers.slice(0, 3).join(","),
+      o: c.occasions.slice(0, 2).join(","),
+      m: c.moods.slice(0, 2).join(","),
+    };
+  });
+}
+
+function resolveCardId(
+  rawId: string,
+  allowedIds: string[],
+  slots: CandidateSlotMaps
+): string | null {
   const id = rawId.trim();
   if (!id) return null;
+
+  const slotNum = Number(id);
+  if (Number.isInteger(slotNum) && slotNum >= 1 && slots.slotToUuid.has(slotNum)) {
+    return slots.slotToUuid.get(slotNum)!;
+  }
+
   const allowed = new Set(allowedIds);
   if (allowed.has(id)) return id;
   const byPrefix = allowedIds.filter((x) => x.startsWith(id) || id.startsWith(x));
@@ -77,28 +121,157 @@ function resolveCardId(rawId: string, allowedIds: string[]): string | null {
 function pickValidRecommendations(
   items: Array<{ cardId: string; score: number; why: string }>,
   allowedIds: string[],
+  slots: CandidateSlotMaps,
   max = 3
 ): Array<{ cardId: string; score: number; why: string }> {
   const seen = new Set<string>();
   const valid: Array<{ cardId: string; score: number; why: string }> = [];
   for (const r of items) {
-    const cardId = resolveCardId(r.cardId, allowedIds);
+    const cardId = resolveCardId(r.cardId, allowedIds, slots);
     if (!cardId || seen.has(cardId)) continue;
     seen.add(cardId);
-    valid.push({ cardId, score: r.score, why: r.why });
+    valid.push({ cardId, score: r.score, why: normalizeWhy(r.why) });
     if (valid.length >= max) break;
   }
   return valid;
 }
 
+function parseAnalyzeResponse(
+  story: string,
+  text: string,
+  allowedIds: string[],
+  slots: CandidateSlotMaps,
+  pickCount: number
+): {
+  fields: ParsedStoryFields;
+  recommendations: Array<{ cardId: string; score: number; why: string }>;
+} {
+  const raw = extractJsonObject(text) as Record<string, unknown>;
+  const recItems = parseRecommendationItems(
+    raw as { recommendations?: Array<Record<string, unknown>> }
+  );
+
+  const parsed = ANALYZE_SCHEMA.safeParse({
+    recipient: raw.recipient,
+    occasion: raw.occasion,
+    mood: raw.mood,
+    budget: raw.budget,
+    color: raw.color,
+    flowerMeaning: raw.flowerMeaning,
+    recommendations: recItems,
+  });
+
+  if (!parsed.success) {
+    throw new LlmParseError("無法解析 Ollama 回傳的情境與推薦欄位");
+  }
+
+  const { budget, flowerMeaning, ...rest } = parsed.data;
+  const sanitized = sanitizeParsedFields({
+    ...rest,
+    budget: budget ?? undefined,
+    flowerMeaning: flowerMeaning?.trim() || undefined,
+  });
+  const fields = coerceFieldsFromStory(story, sanitized);
+
+  const validRecs = pickValidRecommendations(
+    parsed.data.recommendations,
+    allowedIds,
+    slots,
+    pickCount
+  );
+
+  return { fields, recommendations: validRecs };
+}
+
+const ANALYZE_SYSTEM = (pickCount: number) =>
+  `你是禮品情境解析與花藝推薦助手。繁體中文（台灣）。
+任務A：從送禮描述抽出欄位。recipient 必填：原文提到的送禮對象短詞（如摯友、媽媽、同事）；occasion 僅能：${OCCASION_OPTIONS.join("、")} 或空字串；mood 僅能：${MOOD_OPTIONS.join("、")} 或空字串。
+若原文未提到預算則 budget 必須 null；未提到色調則 color 必須空字串；未提到花語／心意則 flowerMeaning 必須空字串。勿從候選卡價格推測預算。
+任務B：從候選清單選 exactly ${pickCount} 張，使用候選的 n 整數（1~${pickCount}）作為 cardId，三張 n 不可重複。
+每張 recommendations 的 why 必填、40 字內繁體中文理由；需符合收禮關係語境（若對象是家人/朋友/同事，避免使用「愛情/戀愛/情人」等字眼；除非原文明確是戀人/老婆/老公）。
+score 為 85~98 整數。
+只回 JSON，勿 markdown：
+{"recipient":"","occasion":"","mood":"","budget":null,"color":"","flowerMeaning":"","recommendations":[{"cardId":"1","score":92,"why":"..."},{"cardId":"2","score":88,"why":"..."},{"cardId":"3","score":85,"why":"..."}]}`;
+
+const RECOMMEND_RETRY_SYSTEM = (pickCount: number, need: number) =>
+  `你是花藝顧問。繁體中文。從候選選 exactly ${need} 張，cardId 必須是候選的 n（1~${pickCount}），不可重複。每張 why 必填 20~40 字繁中，禁止只寫「...」或省略號。
+只回 JSON：{"recommendations":[{"cardId":"1","score":90,"why":"具體理由"}]}`;
+
+const WHY_RETRY_SYSTEM = `你是花藝顧問。繁體中文。使用者已選定卡片編號 n，請只為每張撰寫 why（20~40 字），說明為何適合送禮情境。需符合收禮關係語境（若對象是家人/朋友/同事，避免使用「愛情/戀愛/情人」等字眼；除非原文明確是戀人/老婆/老公）。禁止「...」或空字串。
+只回 JSON：{"recommendations":[{"cardId":"1","why":"具體理由"}]}`;
+
 function parseRecommendationItems(
   raw: { recommendations?: Array<Record<string, unknown>> }
 ): Array<{ cardId: string; score: number; why: string }> {
   return (raw?.recommendations ?? []).map((r) => ({
-    cardId: String(r.cardId ?? r.id ?? ""),
+    cardId: String(r.cardId ?? r.id ?? r.n ?? ""),
     score: typeof r.score === "number" ? r.score : Number(r.score) || 85,
-    why: String(r.why ?? r.reason ?? ""),
+    why: normalizeWhy(r.why ?? r.reason),
   }));
+}
+
+/** 模型常對第 2、3 張只回 "..."，另呼一次只補 why */
+async function fillPlaceholderWhys(
+  story: string,
+  recs: Array<{ cardId: string; score: number; why: string }>,
+  candidates: CandidateSummary[],
+  slots: CandidateSlotMaps,
+  allowedIds: string[],
+  model: string
+): Promise<{
+  recs: Array<{ cardId: string; score: number; why: string }>;
+  extraCalls: number;
+}> {
+  const bad = recs.filter((r) => isPlaceholderWhy(r.why));
+  if (bad.length === 0) return { recs, extraCalls: 0 };
+
+  const compact = compactCandidatesForPrompt(candidates, slots);
+  const retryUser = `送禮描述：\n${story.trim()}\n\n已選卡片（請為每個 n 寫 why，cardId 填 n）：\n${JSON.stringify(
+    bad.map((r) => ({ n: slots.uuidToSlot.get(r.cardId), score: r.score }))
+  )}\n\n候選：\n${JSON.stringify(compact)}`;
+
+  const retryText = await ollamaChat(WHY_RETRY_SYSTEM, retryUser, model, {
+    num_predict: 360,
+  });
+
+  try {
+    const retryRaw = extractJsonObject(retryText) as {
+      recommendations?: Array<Record<string, unknown>>;
+    };
+    const items = (retryRaw?.recommendations ?? []).map((r) => ({
+      cardId: String(
+        (r as Record<string, unknown>).cardId ??
+          (r as Record<string, unknown>).n ??
+          ""
+      ),
+      why: normalizeWhy(
+        (r as Record<string, unknown>).why ?? (r as Record<string, unknown>).reason,
+        ""
+      ),
+    }));
+
+    const whyByCardId = new Map<string, string>();
+    for (const item of items) {
+      const cardId = resolveCardId(item.cardId, allowedIds, slots);
+      if (!cardId || isPlaceholderWhy(item.why)) continue;
+      whyByCardId.set(cardId, item.why);
+    }
+
+    const merged = recs.map((r) => {
+      const better = whyByCardId.get(r.cardId);
+      if (better && isPlaceholderWhy(r.why)) return { ...r, why: better };
+      if (isPlaceholderWhy(r.why)) return { ...r, why: normalizeWhy(r.why) };
+      return r;
+    });
+    return { recs: merged, extraCalls: 1 };
+  } catch {
+    return {
+      recs: recs.map((r) =>
+        isPlaceholderWhy(r.why) ? { ...r, why: normalizeWhy(r.why) } : r
+      ),
+      extraCalls: 0,
+    };
+  }
 }
 
 export type CandidateSummary = {
@@ -231,13 +404,14 @@ flowerMeaning 為期望傳達的花語或心意關鍵字（短句，可空）。
 只回傳 JSON：
 {"recipient":"","occasion":"","mood":"","budget":null,"color":"","flowerMeaning":""}`;
 
-/** 單次 Ollama：解析情境欄位 + 從候選選推薦（analyze 用） */
+/** 單次 Ollama：解析情境欄位 + 從候選選推薦（analyze 用）；不足 3 張時最多補呼一次 */
 export async function analyzeStoryWithOllama(
   story: string,
   candidates: CandidateSummary[]
 ): Promise<{
   fields: ParsedStoryFields;
   recommendations: Array<{ cardId: string; score: number; why: string }>;
+  aiCallCount: number;
 }> {
   if (candidates.length < 1) {
     throw new LlmParseError("候選作品不足，無法分析");
@@ -246,57 +420,76 @@ export async function analyzeStoryWithOllama(
   const model = await assertOllamaAvailable();
   const pickCount = Math.min(3, candidates.length);
   const allowedIds = candidates.map((c) => c.id);
+  const slots = buildCandidateSlotMaps(candidates);
+  const compact = compactCandidatesForPrompt(candidates, slots);
 
-  const system = `你是禮品情境解析與花藝推薦助手。請用繁體中文（台灣）。
-1) 從使用者送禮描述抽出結構化欄位：
-   occasion 只能從：${OCCASION_OPTIONS.join("、")} 或空字串。
-   mood 只能從：${MOOD_OPTIONS.join("、")} 或空字串。
-   budget 為整數新台幣或 null；color 為簡短色名；recipient 為送禮對象；flowerMeaning 為期望花語（可空）。
-2) 從候選清單精選 1～${pickCount} 張 cardId（盡量選滿；id 必須完整複製候選 id，不得捏造）。
-score 為 1–98 整數。why 為簡短推薦理由。
-只回傳 JSON：
-{"recipient":"","occasion":"","mood":"","budget":null,"color":"","flowerMeaning":"","recommendations":[{"cardId":"...","score":90,"why":"..."}]}`;
+  let aiCallCount = 0;
+  const user = `送禮描述：\n${story.trim()}\n\n候選(n=編號，cardId 請填 n 的數字)：\n${JSON.stringify(compact)}`;
 
-  const user = `送禮描述：\n${story.trim()}\n\n候選(JSON陣列)：\n${JSON.stringify(compactCandidates(candidates))}`;
+  const text = await ollamaChat(ANALYZE_SYSTEM(pickCount), user, model, {
+    num_predict: 560,
+  });
+  aiCallCount += 1;
 
-  const text = await ollamaChat(system, user, model, { num_predict: 512 });
-  let raw: Record<string, unknown>;
+  let result: {
+    fields: ParsedStoryFields;
+    recommendations: Array<{ cardId: string; score: number; why: string }>;
+  };
   try {
-    raw = extractJsonObject(text) as Record<string, unknown>;
+    result = parseAnalyzeResponse(story, text, allowedIds, slots, pickCount);
   } catch {
     throw new LlmParseError("無法解析 Ollama 回傳的分析 JSON");
   }
 
-  const recItems = parseRecommendationItems(
-    raw as { recommendations?: Array<Record<string, unknown>> }
-  );
-  const parsed = ANALYZE_SCHEMA.safeParse({
-    recipient: raw.recipient,
-    occasion: raw.occasion,
-    mood: raw.mood,
-    budget: raw.budget,
-    color: raw.color,
-    flowerMeaning: raw.flowerMeaning,
-    recommendations: recItems,
-  });
-
-  if (!parsed.success) {
-    throw new LlmParseError("無法解析 Ollama 回傳的情境與推薦欄位");
+  if (pickCount >= 1) {
+    const { recs, extraCalls } = await fillPlaceholderWhys(
+      story,
+      result.recommendations,
+      candidates,
+      slots,
+      allowedIds,
+      model
+    );
+    result.recommendations = recs;
+    aiCallCount += extraCalls;
   }
 
-  const { budget, flowerMeaning, ...rest } = parsed.data;
-  const fields = sanitizeParsedFields({
-    ...rest,
-    budget: budget ?? undefined,
-    flowerMeaning: flowerMeaning?.trim() || undefined,
-  });
+  if (result.recommendations.length < pickCount && pickCount >= 3) {
+    const need = pickCount - result.recommendations.length;
+    const usedSlots = new Set(
+      result.recommendations.map((r) => slots.uuidToSlot.get(r.cardId)).filter(Boolean)
+    );
+    const retryUser = `需求：${story.trim()}\n已選 n：${[...usedSlots].join(",") || "無"}\n再選 ${need} 張不同 n。\n候選：\n${JSON.stringify(compact)}`;
+    const retryText = await ollamaChat(
+      RECOMMEND_RETRY_SYSTEM(pickCount, need),
+      retryUser,
+      model,
+      { num_predict: 280 }
+    );
+    aiCallCount += 1;
+    try {
+      const retryRaw = extractJsonObject(retryText) as {
+        recommendations?: Array<Record<string, unknown>>;
+      };
+      const extra = pickValidRecommendations(
+        parseRecommendationItems(retryRaw),
+        allowedIds,
+        slots,
+        need
+      );
+      const seen = new Set(result.recommendations.map((r) => r.cardId));
+      for (const r of extra) {
+        if (seen.has(r.cardId)) continue;
+        seen.add(r.cardId);
+        result.recommendations.push(r);
+        if (result.recommendations.length >= pickCount) break;
+      }
+    } catch {
+      /* 保留首次結果 */
+    }
+  }
 
-  const validRecs = pickValidRecommendations(
-    parsed.data.recommendations,
-    allowedIds
-  );
-
-  return { fields, recommendations: validRecs };
+  return { ...result, aiCallCount };
 }
 
 export async function parseStoryWithOllama(story: string): Promise<ParsedStoryFields> {
@@ -307,11 +500,12 @@ export async function parseStoryWithOllama(story: string): Promise<ParsedStoryFi
     throw new LlmParseError("無法解析 Ollama 回傳的情境欄位");
   }
   const { budget, flowerMeaning, ...rest } = parsed.data;
-  return sanitizeParsedFields({
+  const sanitized = sanitizeParsedFields({
     ...rest,
     budget: budget ?? undefined,
     flowerMeaning: flowerMeaning?.trim() || undefined,
   });
+  return coerceFieldsFromStory(story, sanitized);
 }
 
 function formatInputForPrompt(input: RecommendInput): string {
@@ -336,15 +530,15 @@ export async function recommendWithOllama(
 
   const model = await assertOllamaAvailable();
   const pickCount = Math.min(3, candidates.length);
-  const system = `你是專業花藝顧問。請用繁體中文（台灣）撰寫推薦理由。
-從候選清單中精選 1 至 ${pickCount} 張最適合的 cardId（盡量選滿 ${pickCount} 張；若難以判斷可少於 ${pickCount} 張）。
-cardId 必須完整複製候選中的 id 字串，不得捏造或改寫。
-score 為 1–98 的整數，代表契合度。
-只回傳 JSON：{"recommendations":[{"cardId":"...","score":90,"why":"..."}]}`;
+  const slots = buildCandidateSlotMaps(candidates);
+  const allowedIds = candidates.map((c) => c.id);
+  const system = `你是專業花藝顧問。繁體中文（台灣）。
+選 exactly ${pickCount} 張，cardId 用候選 n（1~${pickCount}），不可重複。why 40字內。score 85~98。
+只回 JSON：{"recommendations":[{"cardId":"1","score":90,"why":"..."}]}`;
 
-  const user = `顧客需求：\n${formatInputForPrompt(input)}\n\n候選(JSON陣列，id 必須從中選 1～${pickCount} 個)：\n${JSON.stringify(compactCandidates(candidates))}`;
+  const user = `顧客需求：\n${formatInputForPrompt(input)}\n\n候選(n=編號)：\n${JSON.stringify(compactCandidatesForPrompt(candidates, slots))}`;
 
-  const text = await ollamaChat(system, user, model, { num_predict: 384 });
+  const text = await ollamaChat(system, user, model, { num_predict: 400 });
   let raw: { recommendations?: Array<Record<string, unknown>> };
   try {
     raw = extractJsonObject(text) as {
@@ -360,8 +554,52 @@ score 為 1–98 的整數，代表契合度。
     throw new LlmParseError("無法解析 Ollama 回傳的推薦結果");
   }
 
-  const allowedIds = candidates.map((c) => c.id);
-  const valid = pickValidRecommendations(parsed.data.recommendations, allowedIds);
+  let valid = pickValidRecommendations(
+    parsed.data.recommendations,
+    allowedIds,
+    slots,
+    pickCount
+  );
 
-  return { recommendations: valid };
+  if (valid.length < pickCount && pickCount >= 3) {
+    const need = pickCount - valid.length;
+    const retryText = await ollamaChat(
+      RECOMMEND_RETRY_SYSTEM(pickCount, need),
+      `需求：\n${formatInputForPrompt(input)}\n候選：\n${JSON.stringify(compactCandidatesForPrompt(candidates, slots))}`,
+      model,
+      { num_predict: 280 }
+    );
+    try {
+      const retryRaw = extractJsonObject(retryText) as {
+        recommendations?: Array<Record<string, unknown>>;
+      };
+      const extra = pickValidRecommendations(
+        parseRecommendationItems(retryRaw),
+        allowedIds,
+        slots,
+        need
+      );
+      const seen = new Set(valid.map((r) => r.cardId));
+      for (const r of extra) {
+        if (seen.has(r.cardId)) continue;
+        seen.add(r.cardId);
+        valid.push(r);
+        if (valid.length >= pickCount) break;
+      }
+    } catch {
+      /* keep partial */
+    }
+  }
+
+  const storyText = input.story?.trim() || formatInputForPrompt(input);
+  const { recs } = await fillPlaceholderWhys(
+    storyText,
+    valid,
+    candidates,
+    slots,
+    allowedIds,
+    model
+  );
+
+  return { recommendations: recs };
 }

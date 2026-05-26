@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { RecommendLoadingProgress } from "@/components/recommend/RecommendLoadingProgress";
 import type { Card } from "@/lib/types";
 
 const schema = z.object({
@@ -172,7 +173,13 @@ function RecommendResults({
                     AI 推薦理由
                   </span>
                 </div>
-                <p className="text-xs leading-relaxed text-[color:var(--muted)]">{r.why}</p>
+                <p className="text-xs leading-relaxed text-[color:var(--muted)]">
+                  {r.why?.trim() &&
+                  !/^[.．…\-—_~～]+$/.test(r.why.trim()) &&
+                  r.why.trim() !== "..."
+                    ? r.why.trim()
+                    : "依您的送禮情境，這張作品最貼近需求。"}
+                </p>
               </div>
 
               {expandedCardId === r.card.id && (
@@ -295,15 +302,15 @@ export function RecommendForm() {
   }) => {
     setForm((s) => ({
       ...s,
-      recipient: fields.recipient ?? s.recipient ?? "",
-      occasion: fields.occasion ?? s.occasion ?? "",
-      mood: fields.mood ?? s.mood ?? "",
-      color: fields.color ?? s.color ?? "",
-      flowerMeaning: fields.flowerMeaning ?? s.flowerMeaning ?? "",
+      recipient: fields.recipient ?? "",
+      occasion: fields.occasion ?? "",
+      mood: fields.mood ?? "",
+      color: fields.color ?? "",
+      flowerMeaning: fields.flowerMeaning ?? "",
       budget:
         typeof fields.budget === "number" && fields.budget > 0
           ? String(fields.budget)
-          : s.budget ?? "",
+          : "",
     }));
     setFieldsFromAi(true);
     setHasAnalyzed(true);
@@ -482,11 +489,6 @@ export function RecommendForm() {
             >
               {loadingMode === "analyze" ? "AI 分析中…" : "AI 分析並推薦"}
             </Button>
-            {loadingMode === "analyze" ? (
-              <p className="text-[11px] text-center text-[color:var(--muted)]">
-                單次 AI 解析情境並推薦（約 15–40 秒）…
-              </p>
-            ) : null}
             {errors.story ? (
               <p className="text-xs font-medium text-[color:var(--accent)]">{errors.story}</p>
             ) : null}
@@ -526,7 +528,7 @@ export function RecommendForm() {
                   disabled={loading}
                 >
                   <option value="">不限場合</option>
-                  {["生日", "畢業", "加油", "紀念日", "日常"].map((x) => (
+                  {["生日", "畢業", "加油", "紀念日", "傷病", "日常"].map((x) => (
                     <option key={x} value={x}>
                       {x}
                     </option>
@@ -546,7 +548,7 @@ export function RecommendForm() {
                   disabled={loading}
                 >
                   <option value="">不限氛圍</option>
-                  {["溫柔", "祝福", "鼓勵", "希望", "思念", "安定"].map((x) => (
+                  {["溫柔", "祝福", "鼓勵", "希望", "思念", "安定", "療癒", "感謝"].map((x) => (
                     <option key={x} value={x}>
                       {x}
                     </option>
@@ -606,14 +608,7 @@ export function RecommendForm() {
             </div>
 
             <div className="mt-auto border-t border-[color:var(--line)]/60 pt-4">
-              {loadingMode === "refine" ? (
-                <div className="rounded-2xl border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/5 p-6 text-center animate-pulse">
-                  <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-[color:var(--accent)] border-t-transparent" />
-                  <p className="text-sm font-bold text-[color:var(--accent)]">
-                    Ollama 正在重新推薦…
-                  </p>
-                </div>
-              ) : (
+              {loadingMode !== "refine" ? (
                 <Button
                   type="button"
                   size="lg"
@@ -623,7 +618,7 @@ export function RecommendForm() {
                 >
                   重新生成
                 </Button>
-              )}
+              ) : null}
               {!hasAnalyzed && !hasStructuredInput && !loading ? (
                 <p className="mt-2 text-[11px] text-[color:var(--muted)]">
                   請先完成左側「AI 分析並推薦」，或手動填寫右欄至少一項後再重新生成。
@@ -632,6 +627,12 @@ export function RecommendForm() {
             </div>
           </div>
         </div>
+
+        {loadingMode ? (
+          <div className="mt-6">
+            <RecommendLoadingProgress mode={loadingMode} />
+          </div>
+        ) : null}
       </div>
 
       {results.length > 0 ? (
