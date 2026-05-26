@@ -681,49 +681,66 @@ export function FloriographyExplorer({
                   </div>
 
                   {/* 動態內嵌展開的作品完整規格詳情 (不跳轉頁面) */}
-                  {expandedCardId === c.id && (
-                    <div className="mb-4 border-t border-[color:var(--line)]/60 pt-3 animate-fade-in text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
-                      <div>
-                        <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
-                          作品設計理念 / 故事介紹
-                        </span>
-                        <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
-                          {getCardStoryText(c)}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
-                        <div>
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">適用場合</span>
-                          <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                            {c.tags.occasions.join("、") || "通用送禮"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">傳遞心意</span>
-                          <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                            {c.tags.moods.join("、") || "溫暖期盼"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {c.tags.colors?.length > 0 && (
-                        <div className="pt-0.5">
-                          <span className="text-[9px] text-[color:var(--muted)] uppercase block">視覺主色系</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {c.tags.colors.map((colorItem) => (
-                              <span
-                                key={colorItem}
-                                className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
-                              >
-                                {colorItem}
-                              </span>
-                            ))}
+                  <AnimatePresence initial={false}>
+                    {expandedCardId === c.id ? (
+                      <motion.div
+                        key="detail"
+                        initial={{ height: 0, opacity: 0, y: 6 }}
+                        animate={{ height: "auto", opacity: 1, y: 0 }}
+                        exit={{ height: 0, opacity: 0, y: 6 }}
+                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                        className="mb-4 overflow-hidden"
+                      >
+                        <div className="border-t border-[color:var(--line)]/60 pt-3 text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
+                          <div>
+                            <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
+                              作品設計理念 / 故事介紹
+                            </span>
+                            <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
+                              {getCardStoryText(c)}
+                            </p>
                           </div>
+
+                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
+                            <div>
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                適用場合
+                              </span>
+                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                {c.tags.occasions.join("、") || "通用送禮"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                傳遞心意
+                              </span>
+                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                {c.tags.moods.join("、") || "溫暖期盼"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {c.tags.colors?.length > 0 && (
+                            <div className="pt-0.5">
+                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                視覺主色系
+                              </span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {c.tags.colors.map((colorItem) => (
+                                  <span
+                                    key={colorItem}
+                                    className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
+                                  >
+                                    {colorItem}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
 
                   {/* 價格列與計算式展示 */}
                   <div className="flex items-baseline justify-between border-t border-[color:var(--line)]/40 pt-3 mt-1">

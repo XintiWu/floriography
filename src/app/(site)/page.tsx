@@ -1,10 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ScrollyHero } from "@/components/home/scrolly-hero/ScrollyHero";
 import { Container } from "@/components/Container";
 import { getCards } from "@/lib/catalog";
 import { ServiceOverview } from "../../components/home/ServiceOverview";
-import { getCardStoryText } from "@/lib/cardText";
+import { HomeHighlights } from "@/components/home/HomeHighlights";
 
 export default async function Home() {
   const cards = await getCards();
@@ -49,50 +48,7 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {highlightCards.map((card) => (
-              <Link
-                key={card.id}
-                href={`/reserve?cardId=${encodeURIComponent(card.id)}`}
-                className="group overflow-hidden bg-[color:var(--card)] transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden">
-                  <Image
-                    src={card.images[0] ?? "/demo/pressed-cards.png"}
-                    alt={card.title}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 33vw"
-                    className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-                  />
-                </div>
-                <div className="p-8">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold tracking-wide">
-                      {card.title}
-                    </p>
-                    <p className="mt-1 text-xs text-[color:var(--muted)]">
-                      {card.status === "available"
-                        ? `NT$ ${card.priceTwd}`
-                        : card.status === "sold"
-                          ? "已售出"
-                          : "可客製委託"}
-                    </p>
-                  </div>
-                  <span className="border border-[color:var(--line)] px-3 py-1.5 text-[10px] tracking-widest uppercase text-[color:var(--muted)]">
-                    {card.tags.moods[0] ?? "心意"}
-                  </span>
-                </div>
-                <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)] whitespace-pre-line">
-                  {getCardStoryText(card)}
-                </p>
-                <p className="mt-8 text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--accent)]">
-                  預訂 →
-                </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <HomeHighlights cards={highlightCards} />
         </Container>
       </section>
 
