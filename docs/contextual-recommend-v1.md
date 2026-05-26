@@ -55,18 +55,23 @@ Next.js 僅對 [`public/`](public/) 提供穩定靜態路徑。專案內以 **�
 
 不依賴 LLM 時，以固定模板組出繁中文句，包含：命中的花材、n-gram 重疊概況、場合標籤、預算說明（若有）。
 
-## 5. API 與 Ollama 流程
+## 5. API 與 LLM 流程
 
-[`src/app/api/recommend/route.ts`](src/app/api/recommend/route.ts)（**僅 Ollama**，無 TextMining 最終輸出、無 fallback）：
+[`src/app/api/recommend/route.ts`](src/app/api/recommend/route.ts)（**Gemini 優先、Ollama 備援**；無 TextMining 最終輸出）：
 
 | `mode` | 行為 |
 |--------|------|
-| `analyze` | 必填 `story` → 文字探勘粗排 Top 8 → **單次** Ollama 解析欄位並選卡 → 不足時粗排補位 → `{ fields, recommendations, engine }` |
-| `refine` | 必填右欄至少一項（可帶 `story`）→ 粗排 Top 8 → 單次 Ollama 選卡 → `{ recommendations, engine }` |
+| `analyze` | 必填 `story` → 文字探勘粗排 Top 8 → **單次** LLM 解析欄位並選卡 → 不足時粗排補位 → `{ fields, recommendations, engine }` |
+| `refine` | 必填右欄至少一項（可帶 `story`）→ 粗排 Top 8 → 單次 LLM 選卡 → `{ recommendations, engine }` |
 
-環境變數：`OLLAMA_HOST`（預設 `http://127.0.0.1:11434`）、`OLLAMA_MODEL`（建議 `llama3.2:3b`，見 `.env.local.example`）。
+環境變數（詳見 [`docs/gemini-recommend-setup.md`](gemini-recommend-setup.md)）：
 
-錯誤：`503 llm_unavailable`（Ollama 未啟動）、`502 llm_parse_failed`（JSON 無效或候選 id 不足 3）。
+- `GEMINI_API_KEY` — Gemini 主線（與花朵辨識共用）
+- `GEMINI_RECOMMEND_MODEL`（預設 `gemini-2.5-flash`）
+- `RECOMMEND_LLM_PROVIDER`：`auto` \| `gemini` \| `ollama`（預設 `auto`）
+- `OLLAMA_HOST`、`OLLAMA_MODEL` — 備援
+
+錯誤：`503 llm_unavailable`（Gemini 與 Ollama 皆不可用）、`502 llm_parse_failed`（JSON 無效）。
 
 文字探勘 [`scoreCatalogLocally`](src/lib/flowerRecommend.ts) **僅縮小候選池**，不作最終推薦。
 
@@ -74,7 +79,7 @@ Next.js 僅對 [`public/`](public/) 提供穩定靜態路徑。專案內以 **�
 
 - 左欄「**AI 分析並推薦**」→ `mode=analyze`；右欄可微調後「**重新生成**」→ `mode=refine`。
 - 結果顯示於表單**下方**（表單常駐）；`flowerMeaning` 為右欄「期望花語／心意」。
-- Ollama 不可用時顯示錯誤，**不**顯示推薦卡。
+- LLM 不可用時顯示錯誤，**不**顯示推薦卡。
 
 ## 7. 已知限制與後續方向
 

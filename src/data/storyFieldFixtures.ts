@@ -91,6 +91,17 @@ export const STORY_FIELD_FIXTURES: StoryFieldExpectation[] = [
       flowerMeaning: "感謝",
     },
   },
+  {
+    id: "F12",
+    story: "想送給生病住院的爸爸，祝他早日康復",
+    note: "住院爸爸+康復→傷病",
+    must: {
+      recipient: "爸爸",
+      occasion: "傷病",
+      flowerMeaning: "康復",
+      mood: "祝福",
+    },
+  },
 ];
 
 export function getStoryFieldFixtures(ids?: string[]): StoryFieldExpectation[] {

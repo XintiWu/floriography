@@ -10,34 +10,43 @@ type ProgressStep = {
 
 const ANALYZE_STEPS: ProgressStep[] = [
   {
-    phaseTitle: "正在將您的送禮情境解析成欄位",
-    detail: "正在解析：指定送禮對象",
-    durationMs: 2200,
+    phaseTitle: "正在理解您的送禮情境",
+    detail: "解析送禮對象、場合與心意關鍵字…",
+    durationMs: 3500,
   },
-  { detail: "正在解析：偏好場合", durationMs: 2000 },
-  { detail: "正在解析：期望氛圍與情緒", durationMs: 2000 },
-  { detail: "正在解析：期望花語／心意", durationMs: 2200 },
-  { detail: "正在解析：理想預算上限", durationMs: 2000 },
-  { detail: "正在解析：偏好色調", durationMs: 2000 },
   {
-    phaseTitle: "正在依照情境推薦卡片",
-    detail: "正在從作品庫粗排候選…",
-    durationMs: 2800,
+    phaseTitle: "花語顧問正在撰寫專屬解析",
+    detail: "說明適合的花材意象與送禮理由…",
+    durationMs: 4500,
   },
-  { detail: "正在比對分數…", durationMs: 3200 },
-  { detail: "AI 精選最適合的 3 張卡片…", durationMs: 3500 },
-  { detail: "正在撰寫推薦理由…", durationMs: 4000 },
+  {
+    phaseTitle: "正在精選最適合的作品",
+    detail: "從作品庫比對分數並挑選候選…",
+    durationMs: 4000,
+  },
+  {
+    phaseTitle: "正在完成推薦說明",
+    detail: "為每張作品撰寫專屬推薦理由…",
+    durationMs: 4500,
+  },
 ];
 
 const REFINE_STEPS: ProgressStep[] = [
   {
-    phaseTitle: "正在依照右欄條件推薦卡片",
-    detail: "正在從作品庫粗排候選…",
-    durationMs: 2500,
+    phaseTitle: "正在依您微調的標籤重新理解需求",
+    detail: "更新花語意涵與情緒氛圍條件…",
+    durationMs: 3000,
   },
-  { detail: "正在比對分數…", durationMs: 3000 },
-  { detail: "AI 精選最適合的 3 張卡片…", durationMs: 3500 },
-  { detail: "正在撰寫推薦理由…", durationMs: 4000 },
+  {
+    phaseTitle: "更新花語顧問解析",
+    detail: "依微調後條件重寫顧問建議…",
+    durationMs: 4000,
+  },
+  {
+    phaseTitle: "重新精選推薦作品",
+    detail: "比對作品庫並更新三張推薦…",
+    durationMs: 4500,
+  },
 ];
 
 function buildPhaseTitle(stepIndex: number, steps: ProgressStep[]): string {
@@ -87,8 +96,8 @@ export function RecommendLoadingProgress({
   const detail = steps[stepIndex]?.detail ?? "";
   const etaHint =
     mode === "analyze"
-      ? "本機 AI 約需 15–40 秒，請稍候"
-      : "重新推薦約需 10–25 秒";
+      ? "本機 AI 約需 15–45 秒，請稍候"
+      : "重新推薦約需 12–30 秒";
 
   return (
     <div

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { createRecommendLlm } from "@/lib/llmProvider";
 import {
   LlmParseError,
   LlmUnavailableError,
@@ -21,9 +22,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const fields = await parseStoryWithOllama(parsed.data.story.trim());
-    const model = process.env.OLLAMA_MODEL || "ollama";
-    return NextResponse.json({ ...fields, engine: `Ollama(${model})` });
+    const llm = createRecommendLlm();
+    const fields = await parseStoryWithOllama(parsed.data.story.trim(), llm);
+    return NextResponse.json({ ...fields, engine: llm.getEngineLabel() });
   } catch (error) {
     if (error instanceof LlmUnavailableError) {
       return NextResponse.json(

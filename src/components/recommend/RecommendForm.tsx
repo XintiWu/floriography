@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/Button";
+import { RecommendConsultantBrief } from "@/components/recommend/RecommendConsultantBrief";
 import { RecommendLoadingProgress } from "@/components/recommend/RecommendLoadingProgress";
+import { RecommendTagChips } from "@/components/recommend/RecommendTagChips";
+import {
+  FLOWER_MEANING_TAGS,
+  MOOD_ATMOSPHERE_TAGS,
+  customMeaningFromField,
+  meaningTagsFromField,
+  moodTagsFromField,
+} from "@/data/recommendTagOptions";
 import type { Card } from "@/lib/types";
 import { getCardStoryText } from "@/lib/cardText";
 
@@ -28,7 +37,7 @@ const schema = z.object({
 type Input = z.input<typeof schema>;
 
 const LLM_UNAVAILABLE_MSG =
-  "請先啟動 Ollama（ollama serve）、執行 ollama pull llama3.2:3b，並在 .env.local 設定 OLLAMA_MODEL=llama3.2:3b。";
+  "無法連線 AI 服務。請在 .env.local 設定 GEMINI_API_KEY（建議，見 docs/gemini-recommend-setup.md），或啟動本機 Ollama（ollama serve、ollama pull llama3.2:3b）作為備援。";
 
 function cardStoryText(card: Card): string {
   return getCardStoryText(card);
@@ -82,7 +91,7 @@ function RecommendResults({
           </div>
           <h2 className="text-xl font-bold tracking-wide mt-2">專屬花藝解答與推薦作品</h2>
           <p className="text-xs text-[color:var(--muted)] mt-0.5">
-            由本機 Ollama 從候選作品中精選；可微調右欄後按「重新生成」更新結果。
+            以下為依顧問建議精選的作品；可微調右欄標籤後按「重新生成」更新。
           </p>
         </div>
         <button
@@ -169,7 +178,7 @@ function RecommendResults({
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <span className="text-[11px]">💡</span>
                   <span className="text-[11px] font-bold text-[color:var(--foreground)]/80 tracking-wider">
-                    AI 推薦理由
+                    為何推薦這張
                   </span>
                 </div>
                 <p className="text-xs leading-relaxed text-[color:var(--muted)]">
@@ -275,6 +284,11 @@ export function RecommendForm() {
   const loading = loadingMode !== null;
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [fieldsFromAi, setFieldsFromAi] = useState(false);
+  const [consultantReply, setConsultantReply] = useState("");
+  const [highlightTerms, setHighlightTerms] = useState<string[]>([]);
+  const [meaningTags, setMeaningTags] = useState<string[]>([]);
+  const [moodTags, setMoodTags] = useState<string[]>([]);
+  const [meaningCustom, setMeaningCustom] = useState("");
 
   const hasStructuredInput = useMemo(() => {
     const textFields = [
@@ -290,6 +304,12 @@ export function RecommendForm() {
       String(form.budget).trim() !== "";
     return textFields || hasBudget;
   }, [form]);
+
+  const syncTagsFromFields = (flowerMeaning?: string, mood?: string) => {
+    setMeaningTags(meaningTagsFromField(flowerMeaning));
+    setMeaningCustom(customMeaningFromField(flowerMeaning));
+    setMoodTags(moodTagsFromField(mood));
+  };
 
   const applyFieldsFromApi = (fields: {
     recipient?: string;
@@ -311,6 +331,7 @@ export function RecommendForm() {
           ? String(fields.budget)
           : "",
     }));
+    syncTagsFromFields(fields.flowerMeaning, fields.mood);
     setFieldsFromAi(true);
     setHasAnalyzed(true);
   };
@@ -355,6 +376,8 @@ export function RecommendForm() {
       if (res.ok) {
         const data = await res.json();
         if (data.fields) applyFieldsFromApi(data.fields);
+        setConsultantReply(data.consultantReply ?? "");
+        setHighlightTerms(data.highlightTerms ?? []);
         setResults(data.recommendations ?? []);
         setEngine(data.engine ?? "");
       } else {
@@ -412,6 +435,8 @@ export function RecommendForm() {
       });
       if (res.ok) {
         const data = await res.json();
+        setConsultantReply(data.consultantReply ?? consultantReply);
+        setHighlightTerms(data.highlightTerms ?? []);
         setResults(data.recommendations ?? []);
         setEngine(data.engine ?? "");
       } else {
@@ -500,21 +525,21 @@ export function RecommendForm() {
               </p>
             ) : null}
 
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold tracking-wide">指定送禮對象</span>
-              <input
-                className={inputClass}
-                value={form.recipient ?? ""}
-                onChange={(e) => {
-                  setFieldsFromAi(false);
-                  setForm((s) => ({ ...s, recipient: e.target.value }));
-                }}
-                placeholder="例：媽媽、戀人、摯友、自己…"
-                disabled={loading}
-              />
-            </label>
-
             <div className="grid gap-5 sm:grid-cols-2">
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold tracking-wide">指定送禮對象</span>
+                <input
+                  className={inputClass}
+                  value={form.recipient ?? ""}
+                  onChange={(e) => {
+                    setFieldsFromAi(false);
+                    setForm((s) => ({ ...s, recipient: e.target.value }));
+                  }}
+                  placeholder="例：媽媽、戀人、摯友、自己…"
+                  disabled={loading}
+                />
+              </label>
+
               <label className="grid gap-2">
                 <span className="text-sm font-semibold tracking-wide">偏好場合</span>
                 <select
@@ -534,41 +559,44 @@ export function RecommendForm() {
                   ))}
                 </select>
               </label>
-
-              <label className="grid gap-2">
-                <span className="text-sm font-semibold tracking-wide">期望氛圍與情緒</span>
-                <select
-                  className={inputClass}
-                  value={form.mood ?? ""}
-                  onChange={(e) => {
-                    setFieldsFromAi(false);
-                    setForm((s) => ({ ...s, mood: e.target.value }));
-                  }}
-                  disabled={loading}
-                >
-                  <option value="">不限氛圍</option>
-                  {["溫柔", "祝福", "鼓勵", "希望", "思念", "安定", "療癒", "感謝"].map((x) => (
-                    <option key={x} value={x}>
-                      {x}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-semibold tracking-wide">期望花語／心意</span>
-              <textarea
-                className="min-h-[72px] w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] p-3 text-sm leading-relaxed outline-none resize-y focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] disabled:opacity-60"
-                value={form.flowerMeaning ?? ""}
-                onChange={(e) => {
+            <RecommendTagChips
+              label="期望氛圍與情緒"
+              hint="可微調"
+              tags={MOOD_ATMOSPHERE_TAGS}
+              selected={moodTags}
+              disabled={loading}
+                onChange={(sel, field) => {
                   setFieldsFromAi(false);
-                  setForm((s) => ({ ...s, flowerMeaning: e.target.value }));
+                  const deduped = sel.filter(
+                    (t) => !meaningTags.includes(t)
+                  );
+                  setMoodTags(deduped);
+                  setForm((s) => ({ ...s, mood: field }));
                 }}
-                placeholder="例：鼓勵、希望、感謝、思念…"
-                disabled={loading}
-              />
-            </label>
+            />
+
+            <RecommendTagChips
+              label="期望花語／心意"
+              hint="花語意涵 · 可微調"
+              tags={FLOWER_MEANING_TAGS}
+              selected={meaningTags}
+              customValue={meaningCustom}
+              showHashPrefix
+              disabled={loading}
+              onChange={(sel, field) => {
+                setFieldsFromAi(false);
+                const deduped = sel.filter((t) => !moodTags.includes(t));
+                setMeaningTags(deduped);
+                setForm((s) => ({ ...s, flowerMeaning: field }));
+              }}
+              onCustomChange={(custom, field) => {
+                setFieldsFromAi(false);
+                setMeaningCustom(custom);
+                setForm((s) => ({ ...s, flowerMeaning: field }));
+              }}
+            />
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="grid gap-2">
@@ -634,6 +662,14 @@ export function RecommendForm() {
         ) : null}
       </div>
 
+      {consultantReply && hasAnalyzed ? (
+        <RecommendConsultantBrief
+          story={form.story}
+          consultantReply={consultantReply}
+          highlightTerms={highlightTerms}
+        />
+      ) : null}
+
       {results.length > 0 ? (
         <RecommendResults
           results={results}
@@ -643,6 +679,8 @@ export function RecommendForm() {
           onClearResults={() => {
             setResults([]);
             setEngine("");
+            setConsultantReply("");
+            setHighlightTerms([]);
             setExpandedCardId(null);
           }}
         />

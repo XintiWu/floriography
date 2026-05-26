@@ -11,7 +11,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:parse-fields": "tsx scripts/test-parse-story-fields.ts"
+    "test:parse-fields": "tsx scripts/test-parse-story-fields.ts",
+    "test:consultant-scenarios": "tsx scripts/run-consultant-scenarios.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

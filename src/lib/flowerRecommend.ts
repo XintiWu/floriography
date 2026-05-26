@@ -1,5 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  normalizeMoodPartForScoring,
+  splitTagField,
+} from "@/lib/parseStoryRules";
 import type { Card } from "@/lib/types";
 
 export type CatalogCard = Card & { indexText: string };
@@ -208,14 +212,26 @@ export function scoreCatalogLocally(
       }
     }
 
-    if (input.mood?.trim()) {
-      const { hit, partial } = tagMatch(input.mood, card.tags.moods, card.indexText);
-      if (hit) {
-        rawScore += WEIGHTS.mood;
-        notes.mood = `情緒「${input.mood}」與作品氛圍標籤一致`;
-      } else if (partial) {
-        rawScore += WEIGHTS.mood * 0.45;
-        notes.mood = `情緒「${input.mood}」與作品調性相近`;
+    const moodParts = splitTagField(input.mood).map(normalizeMoodPartForScoring);
+    if (moodParts.length > 0) {
+      let moodBest = 0;
+      const moodHits: string[] = [];
+      for (const part of moodParts) {
+        const { hit, partial } = tagMatch(part, card.tags.moods, card.indexText);
+        if (hit) {
+          moodBest = Math.max(moodBest, WEIGHTS.mood);
+          moodHits.push(part);
+        } else if (partial) {
+          moodBest = Math.max(moodBest, WEIGHTS.mood * 0.45);
+          if (!moodHits.includes(part)) moodHits.push(part);
+        }
+      }
+      if (moodBest > 0) {
+        rawScore += moodBest;
+        notes.mood =
+          moodHits.length > 0
+            ? `情緒「${moodHits.join("、")}」與作品氛圍相近`
+            : `情緒與作品調性相近`;
       }
     }
 

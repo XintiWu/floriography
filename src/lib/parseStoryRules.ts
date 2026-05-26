@@ -1,5 +1,42 @@
 export const OCCASION_OPTIONS = ["生日", "畢業", "加油", "紀念日", "傷病", "日常"] as const;
-export const MOOD_OPTIONS = ["溫柔", "祝福", "鼓勵", "希望", "思念", "安定", "療癒", "感謝"] as const;
+export const MOOD_OPTIONS = [
+  "溫柔",
+  "祝福",
+  "鼓勵",
+  "希望",
+  "思念",
+  "安定",
+  "療癒",
+  "感謝",
+  "沉靜",
+  "輕盈",
+  "明亮",
+  "典雅",
+  "清新",
+] as const;
+
+/** chip / UI 情緒詞 → 粗排用標準情緒（作品庫標籤較少） */
+export const MOOD_SCORING_ALIAS: Record<string, string> = {
+  沉靜: "安定",
+  輕盈: "溫柔",
+  療癒: "祝福",
+  明亮: "祝福",
+  典雅: "安定",
+  清新: "溫柔",
+};
+
+export function splitTagField(value?: string): string[] {
+  if (!value?.trim()) return [];
+  return value
+    .split(/[,，、\s]+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length >= 1);
+}
+
+export function normalizeMoodPartForScoring(part: string): string {
+  const t = part.trim();
+  return MOOD_SCORING_ALIAS[t] ?? t;
+}
 
 export type ParsedStoryFields = {
   recipient?: string;
@@ -28,6 +65,11 @@ const MOOD_KEYWORDS: Record<string, string[]> = {
   安定: ["安定", "平靜", "陪伴", "守護", "穩重"],
   療癒: ["療癒", "放鬆", "舒心", "療傷", "安撫"],
   感謝: ["感謝", "謝謝", "感恩", "多謝"],
+  沉靜: ["沉靜", "寧靜", "靜謐", "安靜"],
+  輕盈: ["輕盈", "輕快", "清爽"],
+  明亮: ["明亮", "陽光", "開朗"],
+  典雅: ["典雅", "大方", "莊重"],
+  清新: ["清新", "清爽", "自然"],
 };
 
 /** 送禮對象詞彙（長詞優先匹配；回傳原文命中的詞，非分類名） */
@@ -366,8 +408,13 @@ export function sanitizeParsedFields(
   if (raw.occasion && OCCASION_OPTIONS.includes(raw.occasion as (typeof OCCASION_OPTIONS)[number])) {
     out.occasion = raw.occasion;
   }
-  if (raw.mood && MOOD_OPTIONS.includes(raw.mood as (typeof MOOD_OPTIONS)[number])) {
-    out.mood = raw.mood;
+  if (raw.mood?.trim()) {
+    const moodParts = splitTagField(raw.mood).filter((p) =>
+      MOOD_OPTIONS.includes(p as (typeof MOOD_OPTIONS)[number])
+    );
+    if (moodParts.length > 0) {
+      out.mood = moodParts.join("、");
+    }
   }
   if (typeof raw.budget === "number" && Number.isFinite(raw.budget) && raw.budget > 0) {
     out.budget = Math.round(raw.budget);

@@ -13,9 +13,10 @@ import {
   coerceFieldsFromStory,
   type ParsedStoryFields,
 } from "@/lib/parseStoryRules";
+import { createRecommendLlm } from "@/lib/llmProvider";
 import {
   analyzeStoryWithOllama,
-  assertOllamaAvailable,
+  buildConsultantFallback,
   isPlaceholderWhy,
   LlmParseError,
   LlmUnavailableError,
@@ -50,7 +51,7 @@ function summarizeCardForLlm(c: CatalogCard): CandidateSummary {
     occasions: c.tags.occasions.slice(0, 3),
     moods: c.tags.moods.slice(0, 3),
     colors: c.tags.colors.slice(0, 3),
-    blurb: (c.blurb ?? "").slice(0, 80),
+    blurb: (c.blurb ?? c.description ?? "").slice(0, 200),
   };
 }
 
@@ -70,11 +71,7 @@ function normalizeOccasionForScoring(occasion?: string) {
 }
 
 function normalizeMoodForScoring(mood?: string) {
-  const m = mood?.trim();
-  if (!m) return undefined;
-  if (m === "療癒") return "祝福";
-  if (m === "感謝") return "祝福";
-  return m;
+  return mood?.trim() || undefined;
 }
 
 function populateRecommendations(
@@ -145,7 +142,7 @@ function buildAllowedMap(
 }
 
 function finalizeRecommendations(
-  model: string,
+  engineBase: string,
   fromLlm: PublicRecommendation[],
   supplemented: boolean,
   aiCallCount = 1
@@ -160,22 +157,26 @@ function finalizeRecommendations(
   const calls = aiCallCount > 1 ? `,${aiCallCount}次呼叫` : "";
 
   const engine = supplemented
-    ? `Ollama(${model})+條件比對${suffix}${calls}`
+    ? `${engineBase}+條件比對${suffix}${calls}`
     : fromLlm.length > 0
-      ? `Ollama(${model})${suffix}${calls}`
+      ? `${engineBase}${suffix}${calls}`
       : `條件比對`;
 
   return { engine, aiRecommendationCount: aiCount };
 }
 
-/** analyze：粗排 → 單次 Ollama（欄位+推薦）→ 二次粗排補位 */
+/** analyze：粗排 → 單次 LLM（欄位+推薦）→ 二次粗排補位 */
 async function runAnalyzePipeline(story: string): Promise<{
   fields: ParsedStoryFields;
+  consultantReply: string;
+  highlightTerms: string[];
   recommendations: PublicRecommendation[];
   engine: string;
   aiRecommendationCount: number;
 }> {
-  const model = await assertOllamaAvailable();
+  const llm = createRecommendLlm();
+  await llm.ready();
+  const engineBase = llm.getEngineLabel();
   const data = getFlowerCatalog();
 
   const storyRanked = scoreCatalogLocally({ story }, data);
@@ -184,16 +185,20 @@ async function runAnalyzePipeline(story: string): Promise<{
 
   let fields: ParsedStoryFields;
   let llmItems: Array<{ cardId: string; score: number; why: string }> = [];
+  let consultantReply = "";
+  let highlightTerms: string[] = [];
 
   let aiCallCount = 1;
   try {
-    const analyzed = await analyzeStoryWithOllama(story, candidates);
+    const analyzed = await analyzeStoryWithOllama(story, candidates, llm);
     fields = analyzed.fields;
     llmItems = analyzed.recommendations;
+    consultantReply = analyzed.consultantReply;
+    highlightTerms = analyzed.highlightTerms;
     aiCallCount = analyzed.aiCallCount;
   } catch (error) {
     if (!(error instanceof LlmParseError)) throw error;
-    fields = { };
+    fields = {};
     llmItems = [];
   }
 
@@ -227,22 +232,43 @@ async function runAnalyzePipeline(story: string): Promise<{
   );
 
   const { engine, aiRecommendationCount } = finalizeRecommendations(
-    model,
+    llm.getEngineLabel() || engineBase,
     fromLlm,
     supplemented,
     aiCallCount
   );
 
+  const mergedFields = coerceFieldsFromStory(story, fields);
+  if (!consultantReply) {
+    const focusFlowers = [
+      ...new Set(sorted.flatMap((r) => r.card.tags?.flowers ?? [])),
+    ].slice(0, 4);
+    consultantReply = buildConsultantFallback(story, mergedFields, {
+      candidates,
+      focusFlowers,
+    });
+  }
+
   return {
-    fields: coerceFieldsFromStory(story, fields),
+    fields: mergedFields,
+    consultantReply,
+    highlightTerms,
     recommendations: sorted,
     engine,
     aiRecommendationCount,
   };
 }
 
-async function runRecommendPipeline(input: RecommendInput) {
-  const model = await assertOllamaAvailable();
+async function runRecommendPipeline(input: RecommendInput): Promise<{
+  recommendations: PublicRecommendation[];
+  engine: string;
+  aiRecommendationCount: number;
+  consultantReply: string;
+  highlightTerms: string[];
+}> {
+  const llm = createRecommendLlm();
+  await llm.ready();
+  const engineBase = llm.getEngineLabel();
   const data = getFlowerCatalog();
   const localRanked = scoreCatalogLocally(
     {
@@ -257,9 +283,13 @@ async function runRecommendPipeline(input: RecommendInput) {
   const candidates = topPool.map(({ card }) => summarizeCardForLlm(card));
 
   let llmItems: Array<{ cardId: string; score: number; why: string }> = [];
+  let consultantReply = "";
+  let highlightTerms: string[] = [];
   try {
-    const llmResult = await recommendWithOllama(input, candidates);
+    const llmResult = await recommendWithOllama(input, candidates, llm);
     llmItems = llmResult.recommendations;
+    consultantReply = llmResult.consultantReply;
+    highlightTerms = llmResult.highlightTerms;
   } catch (error) {
     if (!(error instanceof LlmParseError)) throw error;
   }
@@ -280,16 +310,37 @@ async function runRecommendPipeline(input: RecommendInput) {
   );
 
   const { engine, aiRecommendationCount } = finalizeRecommendations(
-    model,
+    llm.getEngineLabel() || engineBase,
     fromLlm,
     supplemented,
     1
   );
 
+  const story = input.story?.trim() ?? "";
+  if (!consultantReply) {
+    const focusFlowers = [
+      ...new Set(sorted.flatMap((r) => r.card.tags?.flowers ?? [])),
+    ].slice(0, 4);
+    consultantReply = buildConsultantFallback(
+      story,
+      {
+        recipient: input.recipient,
+        occasion: input.occasion,
+        mood: input.mood,
+        budget: input.budget,
+        color: input.color,
+        flowerMeaning: input.flowerMeaning,
+      },
+      { candidates, focusFlowers }
+    );
+  }
+
   return {
     recommendations: sorted,
     engine,
     aiRecommendationCount,
+    consultantReply,
+    highlightTerms,
   };
 }
 
@@ -343,6 +394,8 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
           fields: result.fields,
+          consultantReply: result.consultantReply,
+          highlightTerms: result.highlightTerms,
           recommendations: result.recommendations,
           engine: result.engine,
           aiRecommendationCount: result.aiRecommendationCount,
@@ -376,8 +429,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      const { recommendations, engine } = await runRecommendPipeline(input);
-      return NextResponse.json({ recommendations, engine });
+      const result = await runRecommendPipeline(input);
+      return NextResponse.json({
+        recommendations: result.recommendations,
+        engine: result.engine,
+        consultantReply: result.consultantReply,
+        highlightTerms: result.highlightTerms,
+      });
     } catch (error) {
       const llmRes = llmErrorResponse(error);
       if (llmRes) return llmRes;
