@@ -11,6 +11,7 @@ import {
 } from "@/lib/flowerMeanings";
 import { resolveFlowerStory } from "@/lib/flowerStory";
 import { getFlowerSpeciesImageUrl } from "@/lib/flowerSpeciesImage";
+import { getCardStoryText } from "@/lib/cardText";
 import { authService } from "@/services/authService";
 
 export function FloriographyExplorer({
@@ -687,8 +688,7 @@ export function FloriographyExplorer({
                           作品設計理念 / 故事介紹
                         </span>
                         <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
-                          {c.description ||
-                            "設計師精心挑選高質感實體壓花，揉合純粹自然的美學視角，透過多層次手工藝將植物的永恆姿態溫柔封存。"}
+                          {getCardStoryText(c)}
                         </p>
                       </div>
 
@@ -742,13 +742,20 @@ export function FloriographyExplorer({
 
                   {/* 底部按鈕列 */}
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
-                    <Link
-                      href={`/cards/${encodeURIComponent(c.id)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedCardId((s) => (s === c.id ? null : c.id));
+                      }}
+                      className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
+                        expandedCardId === c.id
+                          ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
+                          : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
+                      }`}
                     >
-                      作品詳情
-                    </Link>
+                      {expandedCardId === c.id ? "收起詳情" : "作品詳情"}
+                    </button>
                     
                     <Link
                       href={`/reserve?cardId=${encodeURIComponent(c.id)}`}

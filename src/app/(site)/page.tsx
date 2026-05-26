@@ -1,10 +1,31 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ScrollyHero } from "@/components/home/scrolly-hero/ScrollyHero";
 import { Container } from "@/components/Container";
 import { getCards } from "@/lib/catalog";
+import { ServiceOverview } from "../../components/home/ServiceOverview";
+import { getCardStoryText } from "@/lib/cardText";
 
 export default async function Home() {
   const cards = await getCards();
+  const highlightCards = (() => {
+    const picked: typeof cards = [];
+    const seen = new Set<string>();
+    for (const c of cards) {
+      const key = (c.title ?? "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      picked.push(c);
+      if (picked.length >= 3) break;
+    }
+    if (picked.length >= 3) return picked;
+    // fallback: 補滿 3 張（即使重複標題）
+    for (const c of cards) {
+      if (picked.length >= 3) break;
+      if (!picked.some((x) => x.id === c.id)) picked.push(c);
+    }
+    return picked;
+  })();
   return (
     <main className="flex flex-1 flex-col">
       <ScrollyHero />
@@ -29,12 +50,22 @@ export default async function Home() {
           </div>
 
           <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {cards.slice(0, 3).map((card) => (
+            {highlightCards.map((card) => (
               <Link
                 key={card.id}
-                href={`/cards/${card.id}`}
-                className="group bg-[color:var(--card)] p-8 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                href={`/reserve?cardId=${encodeURIComponent(card.id)}`}
+                className="group overflow-hidden bg-[color:var(--card)] transition-colors hover:bg-black/5 dark:hover:bg-white/5"
               >
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <Image
+                    src={card.images[0] ?? "/demo/pressed-cards.png"}
+                    alt={card.title}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 33vw"
+                    className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                  />
+                </div>
+                <div className="p-8">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold tracking-wide">
@@ -52,19 +83,22 @@ export default async function Home() {
                     {card.tags.moods[0] ?? "心意"}
                   </span>
                 </div>
-                <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)]">
-                  {card.blurb}
+                <p className="mt-6 text-sm leading-relaxed text-[color:var(--muted)] whitespace-pre-line">
+                  {getCardStoryText(card)}
                 </p>
                 <p className="mt-8 text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--accent)]">
-                  OPEN →
+                  預訂 →
                 </p>
+                </div>
               </Link>
             ))}
           </div>
         </Container>
       </section>
 
-      <section className="border-t border-[color:var(--line)] py-24 sm:py-32">
+      <ServiceOverview />
+
+      <section className="py-24 sm:py-32">
         <Container>
           <div className="grid gap-12 md:grid-cols-12 md:items-start">
             <div className="md:col-span-5">

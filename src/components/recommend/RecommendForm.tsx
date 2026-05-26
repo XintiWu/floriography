@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Button } from "@/components/Button";
 import { RecommendLoadingProgress } from "@/components/recommend/RecommendLoadingProgress";
 import type { Card } from "@/lib/types";
+import { getCardStoryText } from "@/lib/cardText";
 
 const schema = z.object({
   recipient: z.string().optional(),
@@ -30,9 +31,7 @@ const LLM_UNAVAILABLE_MSG =
   "請先啟動 Ollama（ollama serve）、執行 ollama pull llama3.2:3b，並在 .env.local 設定 OLLAMA_MODEL=llama3.2:3b。";
 
 function cardStoryText(card: Card): string {
-  const d = card.description?.trim();
-  if (d) return d;
-  return card.blurb?.trim() ?? "";
+  return getCardStoryText(card);
 }
 
 function CardProductImage({ card }: { card: Card }) {

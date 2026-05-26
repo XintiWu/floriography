@@ -119,7 +119,7 @@ function resolveCardId(
 }
 
 function pickValidRecommendations(
-  items: Array<{ cardId: string; score: number; why: string }>,
+  items: Array<{ cardId: string; score: number; why?: string }>,
   allowedIds: string[],
   slots: CandidateSlotMaps,
   max = 3

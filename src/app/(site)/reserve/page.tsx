@@ -35,7 +35,7 @@ export default async function ReservePage({
               你正在詢問作品：
               <Link
                 className="ml-2 font-semibold hover:underline"
-                href={`/cards/${card.id}`}
+                href="/floriography"
               >
                 {card.title}
               </Link>

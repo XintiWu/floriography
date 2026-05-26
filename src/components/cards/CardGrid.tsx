@@ -28,7 +28,7 @@ export function CardGrid({ cards }: { cards: Card[] }) {
       {cards.map((card, idx) => (
         <Reveal key={card.id} delay={Math.min(idx * 0.03, 0.18)}>
           <Link
-            href={`/cards/${card.id}`}
+            href={`/reserve?cardId=${encodeURIComponent(card.id)}`}
             className={cn(
               "group overflow-hidden rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)]",
               "transition-colors hover:bg-black/5 dark:hover:bg-white/5"
