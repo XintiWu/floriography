@@ -66,9 +66,31 @@ export function hasRomanticLeak(text: string): boolean {
   return ROMANTIC_LEAK_RE.test(text);
 }
 
+/** 通用清洗：移除英文片段與不合語氣詞 */
+export function sanitizeGeneralRecommendCopy(text: string): string {
+  let s = text;
+  const rules: Array<[RegExp, string]> = [
+    [/\bparental\s+love\b/gi, "親情"],
+    [/\bdad\b/gi, "爸爸"],
+    [/\bmom\b/gi, "媽媽"],
+    [/\bfriend\b/gi, "朋友"],
+    [/\blover\b/gi, "戀人"],
+    [/\bromantic\b/gi, "浪漫"],
+    [/不建議/g, "建議避免"],
+    [/建議避免避免/g, "建議避免"],
+  ];
+  for (const [re, rep] of rules) {
+    s = s.replace(re, rep);
+  }
+  // Remove remaining standalone Latin words to avoid mixed-language output.
+  s = s.replace(/\b[a-zA-Z][a-zA-Z0-9_-]*\b/g, "");
+  s = s.replace(/\s{2,}/g, " ");
+  return s.trim();
+}
+
 /** 非戀人語境：將 why / 顧問文案中的戀愛用語改為親情／祝福語彙 */
 export function sanitizeNonRomanticCopy(text: string): string {
-  let s = text;
+  let s = sanitizeGeneralRecommendCopy(text);
   const rules: Array<[RegExp, string]> = [
     [/愛情和感謝/g, "祝福與感謝"],
     [/感謝和愛情/g, "感謝與祝福"],
@@ -102,7 +124,7 @@ export function applyRecommendTone(
   text: string,
   tone: RecommendToneContext
 ): string {
-  const t = text.trim();
+  const t = sanitizeGeneralRecommendCopy(text).trim();
   if (!t) return t;
   if (tone.romantic) return t;
   return sanitizeNonRomanticCopy(t);
