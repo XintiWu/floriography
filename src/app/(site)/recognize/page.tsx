@@ -299,7 +299,7 @@ export default function RecognizePage() {
                   ) : null}
                   {response?.recognizedName && !response?.matchedFlower && phase !== "generating" ? (
                     <p className="mt-2 text-sm text-[color:var(--muted)]">
-                      {response.recognizedName === "圖片不含花朵，隨機推薦花卡"
+                      {response.recognizedName === "圖片不含花朵，隨機推薦"
                         ? ""
                         : `我們目前沒有提供包含「${response.recognizedName}」的花卡，以下為隨機推薦之花卡。`
                       }

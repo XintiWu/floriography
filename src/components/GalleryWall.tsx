@@ -124,11 +124,6 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
         href={`/card/${card.id}`} 
         className="block bg-[#e8e4db] dark:bg-[#1a1a18] relative overflow-hidden shrink-0 w-full aspect-[3/4] flex flex-col"
       >
-        {/* Top Muted Color Label (Inspired by Reference) */}
-        <div className={`${bgColor} w-full py-2.5 px-4 text-[10px] font-bold tracking-[0.2em] text-white uppercase shrink-0`}>
-          {label}
-        </div>
-        
         {/* Actual Card Image */}
         <div className="w-full grow relative overflow-hidden">
           {card.image_data ? (
@@ -142,6 +137,11 @@ function CardTweet({ card, index }: { card: SharedCard; index: number }) {
               <Flower2 size={28} />
             </div>
           )}
+        </div>
+
+        {/* Bottom Muted Color Label (Inspired by Reference) */}
+        <div className={`${bgColor} w-full py-2.5 px-4 text-[10px] font-bold tracking-[0.2em] text-white uppercase shrink-0`}>
+          {label}
         </div>
       </Link>
 

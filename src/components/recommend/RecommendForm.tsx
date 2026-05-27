@@ -2,16 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/Button";
-import { RecommendConsultantBrief } from "@/components/recommend/RecommendConsultantBrief";
 import { RecommendLoadingProgress } from "@/components/recommend/RecommendLoadingProgress";
 import { RecommendTagChips } from "@/components/recommend/RecommendTagChips";
 import {
   FLOWER_MEANING_TAGS,
   MOOD_ATMOSPHERE_TAGS,
-  customMeaningFromField,
+  joinTagsToField,
   meaningTagsFromField,
   moodTagsFromField,
 } from "@/data/recommendTagOptions";
@@ -35,6 +34,12 @@ const schema = z.object({
 });
 
 type Input = z.input<typeof schema>;
+type AnalyzePhase = "idle" | "parsing" | "filling" | "recommending" | "done" | "error";
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
 
 const LLM_UNAVAILABLE_MSG =
   "無法連線 AI 服務。請在 .env.local 設定 GEMINI_API_KEY（建議，見 docs/gemini-recommend-setup.md），或啟動本機 Ollama（ollama serve、ollama pull llama3.2:3b）作為備援。";
@@ -264,6 +269,85 @@ function RecommendResults({
   );
 }
 
+const PHASE_HINTS: Record<Exclude<AnalyzePhase, "idle" | "done" | "error">, { title: string; detail: string; eta: string }> = {
+  parsing: {
+    title: "正在解析您的故事",
+    detail: "先抓出送禮對象、場合、氣氛和花語關鍵字…",
+    eta: "通常約 4–12 秒",
+  },
+  filling: {
+    title: "正在整理需求欄位",
+    detail: "我先把解析好的欄位一格一格填上，方便你馬上微調…",
+    eta: "通常約 2–6 秒",
+  },
+  recommending: {
+    title: "正在為您推薦卡片",
+    detail: "正在比對作品資料庫，整理最適合你的三張推薦…",
+    eta: "通常約 12–35 秒",
+  },
+};
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pickTagsByKeywords(
+  text: string,
+  pool: readonly string[],
+  pairs: Array<[RegExp, string]>
+): string[] {
+  const found: string[] = [];
+  for (const [re, tag] of pairs) {
+    if (re.test(text) && pool.includes(tag as (typeof pool)[number]) && !found.includes(tag)) {
+      found.push(tag);
+    }
+  }
+  return found;
+}
+
+function inferTagsFromStory(story: string) {
+  const blob = story.trim();
+  if (!blob) return { mood: [] as string[], meaning: [] as string[] };
+
+  const meaning = pickTagsByKeywords(blob, FLOWER_MEANING_TAGS, [
+    [/康復|早日好|早日恢復|療養|住院|手術|探病/, "康復"],
+    [/平安|安康|順心|平順/, "平安"],
+    [/健康|保重/, "健康"],
+    [/祝福|祝賀|恭喜|賀喜/, "祝福"],
+    [/感謝|謝謝|答謝/, "感謝"],
+    [/希望|盼望|期待/, "希望"],
+    [/鼓勵|加油|打氣|支持/, "鼓勵"],
+    [/陪伴|陪你|陪在/, "陪伴"],
+    [/思念|想念|懷念/, "思念"],
+    [/守護|保護|照顧/, "守護"],
+    [/堅強|堅韌|撐住/, "堅韌"],
+    [/開心|喜悅|喜樂|快樂/, "喜悅"],
+    [/真誠|誠摯|誠意/, "真誠"],
+    [/長壽|福壽|延年/, "長壽"],
+  ]);
+
+  const mood = pickTagsByKeywords(blob, MOOD_ATMOSPHERE_TAGS, [
+    [/溫柔|柔和|柔軟/, "溫柔"],
+    [/沉靜|沉穩|安靜|寧靜/, "沉靜"],
+    [/安定|安心|穩定|穩重/, "安定"],
+    [/輕盈|輕快|清爽/, "輕盈"],
+    [/療癒|治癒|撫慰/, "療癒"],
+    [/明亮|亮麗|朝氣|活力/, "明亮"],
+    [/典雅|優雅|高雅/, "典雅"],
+    [/清新|自然|乾淨/, "清新"],
+  ]);
+
+  return { mood, meaning };
+}
+
+function ensureConsultantClosing(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "我整理好你的需求囉！所以我推薦以下三張卡片給你！";
+  if (/所以我推薦以下三張卡片給[你您]/.test(trimmed)) return trimmed;
+  const suffix = /[。！？～~]$/.test(trimmed) ? "" : "！";
+  return `${trimmed}${suffix}所以我推薦以下三張卡片給你！`;
+}
+
 export function RecommendForm() {
   const [form, setForm] = useState<Input>({
     recipient: "",
@@ -281,14 +365,26 @@ export function RecommendForm() {
   const [engine, setEngine] = useState<string>("");
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [loadingMode, setLoadingMode] = useState<"analyze" | "refine" | null>(null);
+  const [analyzePhase, setAnalyzePhase] = useState<AnalyzePhase>("idle");
   const loading = loadingMode !== null;
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [fieldsFromAi, setFieldsFromAi] = useState(false);
   const [consultantReply, setConsultantReply] = useState("");
-  const [highlightTerms, setHighlightTerms] = useState<string[]>([]);
   const [meaningTags, setMeaningTags] = useState<string[]>([]);
   const [moodTags, setMoodTags] = useState<string[]>([]);
-  const [meaningCustom, setMeaningCustom] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: "assistant-welcome",
+      role: "assistant",
+      text: "請先告訴我您的送禮情境，我會先幫您解析重點，再推薦三張卡片！",
+    },
+  ]);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const [floatingBubbleText, setFloatingBubbleText] = useState("");
+  const [showFloatingBubble, setShowFloatingBubble] = useState(false);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+  const chatPanelRef = useRef<HTMLDivElement | null>(null);
+  const storySectionRef = useRef<HTMLDivElement | null>(null);
 
   const hasStructuredInput = useMemo(() => {
     const textFields = [
@@ -305,35 +401,27 @@ export function RecommendForm() {
     return textFields || hasBudget;
   }, [form]);
 
-  const syncTagsFromFields = (flowerMeaning?: string, mood?: string) => {
-    setMeaningTags(meaningTagsFromField(flowerMeaning));
-    setMeaningCustom(customMeaningFromField(flowerMeaning));
-    setMoodTags(moodTagsFromField(mood));
-  };
+  const syncTagsFromFields = (
+    flowerMeaning?: string,
+    mood?: string,
+    storyForFallback?: string
+  ) => {
+    let nextMeaningTags = meaningTagsFromField(flowerMeaning);
+    let nextMoodTags = moodTagsFromField(mood);
 
-  const applyFieldsFromApi = (fields: {
-    recipient?: string;
-    occasion?: string;
-    mood?: string;
-    budget?: number;
-    color?: string;
-    flowerMeaning?: string;
-  }) => {
+    if (storyForFallback && nextMeaningTags.length === 0 && nextMoodTags.length === 0) {
+      const inferred = inferTagsFromStory(storyForFallback);
+      nextMeaningTags = inferred.meaning;
+      nextMoodTags = inferred.mood;
+    }
+
+    setMeaningTags(nextMeaningTags);
+    setMoodTags(nextMoodTags);
     setForm((s) => ({
       ...s,
-      recipient: fields.recipient ?? "",
-      occasion: fields.occasion ?? "",
-      mood: fields.mood ?? "",
-      color: fields.color ?? "",
-      flowerMeaning: fields.flowerMeaning ?? "",
-      budget:
-        typeof fields.budget === "number" && fields.budget > 0
-          ? String(fields.budget)
-          : "",
+      flowerMeaning: nextMeaningTags.length ? joinTagsToField(nextMeaningTags) : (flowerMeaning ?? ""),
+      mood: nextMoodTags.length ? joinTagsToField(nextMoodTags) : (mood ?? ""),
     }));
-    syncTagsFromFields(fields.flowerMeaning, fields.mood);
-    setFieldsFromAi(true);
-    setHasAnalyzed(true);
   };
 
   const parseApiError = async (res: Response) => {
@@ -353,37 +441,139 @@ export function RecommendForm() {
     return msg;
   };
 
+  const applyFieldsStepByStep = async (fields: {
+    recipient?: string;
+    occasion?: string;
+    mood?: string;
+    budget?: number;
+    color?: string;
+    flowerMeaning?: string;
+  }) => {
+    setAnalyzePhase("filling");
+    const steps: Array<() => void> = [
+      () => setForm((s) => ({ ...s, recipient: fields.recipient ?? "" })),
+      () => setForm((s) => ({ ...s, occasion: fields.occasion ?? "" })),
+      () => setForm((s) => ({ ...s, mood: fields.mood ?? "" })),
+      () => setForm((s) => ({ ...s, flowerMeaning: fields.flowerMeaning ?? "" })),
+      () =>
+        setForm((s) => ({
+          ...s,
+          budget:
+            typeof fields.budget === "number" && fields.budget > 0
+              ? String(fields.budget)
+              : "",
+        })),
+      () => setForm((s) => ({ ...s, color: fields.color ?? "" })),
+    ];
+
+    for (const step of steps) {
+      step();
+      await sleep(240);
+    }
+
+    syncTagsFromFields(fields.flowerMeaning, fields.mood, form.story?.trim());
+    setFieldsFromAi(true);
+    setHasAnalyzed(true);
+  };
+
   const runAnalyze = async () => {
     const story = form.story?.trim();
     if (!story) {
       setErrors((e) => ({ ...e, story: "請先輸入左側情境描述" }));
       return;
     }
+
     setErrors((e) => {
       const next = { ...e };
       delete next.story;
       delete next.form;
       return next;
     });
+
     setLoadingMode("analyze");
+    setAnalyzePhase("parsing");
     setExpandedCardId(null);
+    setShowScrollHint(false);
+    setShowFloatingBubble(false);
+    setResults([]);
+    setConsultantReply("");
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: "user",
+      text: story,
+    };
+    setChatMessages((prev) => {
+      const withoutWelcome =
+        prev.length === 1 && prev[0]?.id === "assistant-welcome" ? [] : prev;
+      return [...withoutWelcome, userMessage];
+    });
+
     try {
-      const res = await fetch("/api/recommend", {
+      const parseRes = await fetch("/api/parse-story", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "analyze", story }),
+        body: JSON.stringify({ story }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.fields) applyFieldsFromApi(data.fields);
-        setConsultantReply(data.consultantReply ?? "");
-        setHighlightTerms(data.highlightTerms ?? []);
-        setResults(data.recommendations ?? []);
-        setEngine(data.engine ?? "");
-      } else {
-        const errMsg = await parseApiError(res);
+
+      if (!parseRes.ok) {
+        const errMsg = await parseApiError(parseRes);
         setErrors((e) => ({ ...e, form: errMsg }));
-        if (res.status === 503) setResults([]);
+        setAnalyzePhase("error");
+        return;
+      }
+
+      const parsedFields = await parseRes.json();
+      await applyFieldsStepByStep(parsedFields);
+
+      setAnalyzePhase("recommending");
+
+      const recommendRes = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "refine",
+          story,
+          recipient: parsedFields.recipient,
+          occasion: parsedFields.occasion,
+          mood: parsedFields.mood,
+          flowerMeaning: parsedFields.flowerMeaning,
+          budget: parsedFields.budget,
+          color: parsedFields.color,
+        }),
+      });
+
+      if (!recommendRes.ok) {
+        const errMsg = await parseApiError(recommendRes);
+        setErrors((e) => ({ ...e, form: errMsg }));
+        if (recommendRes.status === 503) setResults([]);
+        setAnalyzePhase("error");
+        return;
+      }
+
+      const data = await recommendRes.json();
+      const assistantText = ensureConsultantClosing(data.consultantReply ?? "");
+      setConsultantReply(assistantText);
+      setResults(data.recommendations ?? []);
+      setEngine(data.engine ?? "");
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          text: assistantText,
+        },
+      ]);
+      setAnalyzePhase("done");
+      const hasRecs = (data.recommendations ?? []).length > 0;
+      setShowScrollHint(hasRecs);
+      if (hasRecs) {
+        setFloatingBubbleText(assistantText);
+        setShowFloatingBubble(true);
+        // Keep the conversation visible for a brief moment, then guide users to result cards.
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 240);
       }
     } catch (error) {
       console.error("analyze failed", error);
@@ -391,6 +581,7 @@ export function RecommendForm() {
         ...e,
         form: "無法連線推薦服務，請確認開發伺服器已啟動後再試。",
       }));
+      setAnalyzePhase("error");
     } finally {
       setLoadingMode(null);
     }
@@ -422,7 +613,11 @@ export function RecommendForm() {
       return next;
     });
     setLoadingMode("refine");
+    setAnalyzePhase("recommending");
     setExpandedCardId(null);
+    setShowScrollHint(false);
+    setShowFloatingBubble(false);
+
     try {
       const res = await fetch("/api/recommend", {
         method: "POST",
@@ -435,14 +630,36 @@ export function RecommendForm() {
       });
       if (res.ok) {
         const data = await res.json();
-        setConsultantReply(data.consultantReply ?? consultantReply);
-        setHighlightTerms(data.highlightTerms ?? []);
+        const assistantText = ensureConsultantClosing(data.consultantReply ?? consultantReply);
+        setConsultantReply(assistantText);
         setResults(data.recommendations ?? []);
         setEngine(data.engine ?? "");
+        setChatMessages((prev) => {
+          const withoutLastAssistant =
+            prev.length > 0 && prev[prev.length - 1]?.role === "assistant"
+              ? prev.slice(0, -1)
+              : prev;
+          return [
+            ...withoutLastAssistant,
+            { id: `assistant-${Date.now()}`, role: "assistant", text: assistantText },
+          ];
+        });
+        const hasRecs = (data.recommendations ?? []).length > 0;
+        setShowScrollHint(hasRecs);
+        if (hasRecs) {
+          setFloatingBubbleText(assistantText);
+          setShowFloatingBubble(true);
+          // Re-run recommendation should preserve the same auto-focus behavior to results.
+          setTimeout(() => {
+            resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 240);
+        }
+        setAnalyzePhase("done");
       } else {
         const errMsg = await parseApiError(res);
         setErrors((e) => ({ ...e, form: errMsg }));
         if (res.status === 503) setResults([]);
+        setAnalyzePhase("error");
       }
     } catch (error) {
       console.error("refine failed", error);
@@ -450,6 +667,7 @@ export function RecommendForm() {
         ...e,
         form: "無法連線推薦服務，請確認開發伺服器已啟動後再試。",
       }));
+      setAnalyzePhase("error");
     } finally {
       setLoadingMode(null);
     }
@@ -463,6 +681,11 @@ export function RecommendForm() {
 
   const inputClass =
     "h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] transition-all";
+
+  const progressContent =
+    analyzePhase === "parsing" || analyzePhase === "filling" || analyzePhase === "recommending"
+      ? PHASE_HINTS[analyzePhase]
+      : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl animate-fade-in">
@@ -483,7 +706,7 @@ export function RecommendForm() {
         ) : null}
 
         <div className="mt-6 grid gap-8 lg:grid-cols-2 lg:items-stretch">
-          <div className="grid gap-2 content-start">
+          <div ref={storySectionRef} className="grid gap-2 content-start">
             <label htmlFor="recommend-story" className="text-sm font-semibold tracking-wide">
               送禮情境自由描述
             </label>
@@ -493,7 +716,7 @@ export function RecommendForm() {
             </p>
             <textarea
               id="recommend-story"
-              className="min-h-[320px] w-full flex-1 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] p-4 text-sm leading-relaxed outline-none transition-all resize-y focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] disabled:opacity-60"
+              className="min-h-[84px] w-full flex-1 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] p-4 text-sm leading-relaxed outline-none transition-all resize-y focus-visible:ring-2 focus-visible:ring-[color:var(--accent)] disabled:opacity-60"
               value={form.story ?? ""}
               onChange={(e) => {
                 setFieldsFromAi(false);
@@ -516,6 +739,56 @@ export function RecommendForm() {
             {errors.story ? (
               <p className="text-xs font-medium text-[color:var(--accent)]">{errors.story}</p>
             ) : null}
+
+            <div
+              ref={chatPanelRef}
+              className="mt-4 rounded-2xl border border-[color:var(--line)] bg-[color:var(--background)]/50 p-4"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-[color:var(--accent)]" />
+                <p className="text-xs font-semibold tracking-wide">花語顧問聊天室</p>
+              </div>
+
+              <div className="grid gap-3">
+                {chatMessages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-[color:var(--ink)] text-[color:var(--paper)]"
+                          : "bg-[color:var(--accent)]/12 text-[color:var(--foreground)] border border-[color:var(--accent)]/20"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {progressContent ? (
+                <div className="mt-3">
+                  <RecommendLoadingProgress
+                    phaseTitle={progressContent.title}
+                    detail={progressContent.detail}
+                    etaHint={progressContent.eta}
+                  />
+                </div>
+              ) : null}
+
+              {showScrollHint && results.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-[color:var(--accent)]/30 bg-[color:var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[color:var(--accent)] hover:bg-[color:var(--accent)]/15"
+                >
+                  <span className="inline-block animate-bounce">↓</span>
+                  往下看推薦卡片
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-col gap-5">
@@ -567,14 +840,12 @@ export function RecommendForm() {
               tags={MOOD_ATMOSPHERE_TAGS}
               selected={moodTags}
               disabled={loading}
-                onChange={(sel, field) => {
-                  setFieldsFromAi(false);
-                  const deduped = sel.filter(
-                    (t) => !meaningTags.includes(t)
-                  );
-                  setMoodTags(deduped);
-                  setForm((s) => ({ ...s, mood: field }));
-                }}
+              onChange={(sel, field) => {
+                setFieldsFromAi(false);
+                const deduped = sel.filter((t) => !meaningTags.includes(t));
+                setMoodTags(deduped);
+                setForm((s) => ({ ...s, mood: field }));
+              }}
             />
 
             <RecommendTagChips
@@ -582,18 +853,12 @@ export function RecommendForm() {
               hint="花語意涵 · 可微調"
               tags={FLOWER_MEANING_TAGS}
               selected={meaningTags}
-              customValue={meaningCustom}
               showHashPrefix
               disabled={loading}
               onChange={(sel, field) => {
                 setFieldsFromAi(false);
                 const deduped = sel.filter((t) => !moodTags.includes(t));
                 setMeaningTags(deduped);
-                setForm((s) => ({ ...s, flowerMeaning: field }));
-              }}
-              onCustomChange={(custom, field) => {
-                setFieldsFromAi(false);
-                setMeaningCustom(custom);
                 setForm((s) => ({ ...s, flowerMeaning: field }));
               }}
             />
@@ -654,36 +919,45 @@ export function RecommendForm() {
             </div>
           </div>
         </div>
-
-        {loadingMode ? (
-          <div className="mt-6">
-            <RecommendLoadingProgress mode={loadingMode} />
-          </div>
-        ) : null}
       </div>
 
-      {consultantReply && hasAnalyzed ? (
-        <RecommendConsultantBrief
-          story={form.story}
-          consultantReply={consultantReply}
-          highlightTerms={highlightTerms}
-        />
+      {results.length > 0 ? (
+        <div ref={resultsRef}>
+          <RecommendResults
+            results={results}
+            engine={engine}
+            expandedCardId={expandedCardId}
+            setExpandedCardId={setExpandedCardId}
+            onClearResults={() => {
+              setResults([]);
+              setEngine("");
+              setConsultantReply("");
+              setExpandedCardId(null);
+              setShowScrollHint(false);
+              setShowFloatingBubble(false);
+            }}
+          />
+        </div>
       ) : null}
 
-      {results.length > 0 ? (
-        <RecommendResults
-          results={results}
-          engine={engine}
-          expandedCardId={expandedCardId}
-          setExpandedCardId={setExpandedCardId}
-          onClearResults={() => {
-            setResults([]);
-            setEngine("");
-            setConsultantReply("");
-            setHighlightTerms([]);
-            setExpandedCardId(null);
-          }}
-        />
+      {showFloatingBubble && floatingBubbleText ? (
+        <button
+          type="button"
+          onClick={() =>
+            (storySectionRef.current ?? chatPanelRef.current)?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            })
+          }
+          className="fixed bottom-4 right-1 z-40 w-[220px] rounded-2xl border border-[color:var(--accent)]/35 bg-[color:var(--card)]/95 px-3 py-2 text-left shadow-lg backdrop-blur xl:right-2"
+        >
+          <p className="text-[9px] font-semibold tracking-wide text-[color:var(--accent)]">
+            推薦完成
+          </p>
+          <p className="mt-1 max-h-24 overflow-y-auto pr-1 text-[11px] leading-relaxed text-[color:var(--foreground)]">
+            {floatingBubbleText}
+          </p>
+        </button>
       ) : null}
     </div>
   );

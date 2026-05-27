@@ -178,6 +178,7 @@ const CONSULTANT_STYLE_RULES = `consultantReply 寫作規範（極重要）：
 - 你是對「送禮的顧客」做專業花藝顧問分析，全文用「您」；禁止代寫賀卡、禁止對收禮人直呼或直接對話
 - 收禮人請用第三人稱（如「您的父親」「對方」）
 - 必須是 2~4 句連貫散文，禁止編號、條列、換行清單
+- 語氣請採中度親切口吻：自然口語，可使用「！、～」增添溫度，但不可過度誇張或賣萌
 - 禁止「親愛的顧客」「您好」等客服開場、禁止作品全名、「植物標本卡」「選擇了以下」「第1張」等推銷用語
 - 必須具體點名「本店花材清單」中 2~4 種花材全名，分別說明其花語意象與為何適合此情境（專業顧問口吻，非商品清單）
 - 禁止臆造清單外的花名；highlightTerms 須為 consultantReply 中出現的花材名，2~3 個，且全部來自清單`;
@@ -296,13 +297,15 @@ export function finalizeConsultantBrief(
     !isConsultantReplyLowQuality(cleaned, fields) &&
     (tone.romantic || !hasRomanticLeak(cleaned))
   ) {
-    consultantReply = applyRecommendTone(cleaned.slice(0, 320), tone);
+    consultantReply = ensureConsultantClosing(
+      applyRecommendTone(cleaned.slice(0, 320), tone)
+    );
   } else {
     consultantReply = buildConsultantFallback(story, fields, {
       candidates: ctx.candidates,
       focusFlowers: focus.length >= 2 ? focus : inventory.slice(0, 3),
     });
-    consultantReply = applyRecommendTone(consultantReply, tone);
+    consultantReply = ensureConsultantClosing(applyRecommendTone(consultantReply, tone));
   }
 
   const highlightTerms = sanitizeHighlightTerms(
@@ -361,6 +364,15 @@ function stripConsultantArtifacts(text: string): string {
     .trim();
 }
 
+function ensureConsultantClosing(text: string): string {
+  const cleaned = text.trim();
+  const suffix = "所以我推薦以下三張卡片給您！";
+  if (!cleaned) return `我先幫您把心意整理好了～${suffix}`;
+  if (/所以我推薦以下三張卡片給[你您]/.test(cleaned)) return cleaned;
+  if (/[。！？～~]$/.test(cleaned)) return `${cleaned}${suffix}`;
+  return `${cleaned}！${suffix}`;
+}
+
 export function buildConsultantFallback(
   story: string,
   fields: ParsedStoryFields,
@@ -388,7 +400,9 @@ export function buildConsultantFallback(
     });
     const flowerSentence = parts.join("；");
     const occPhrase = occ ? `在${occ}情境下` : "依您描述的情境";
-    return `${occPhrase}，為${who}挑選心意時，建議優先考量本店作品中的${flowers.slice(0, 3).join("、")}等花材。${flowerSentence}。這些乾燥花材可長久保存，以沉靜而細膩的方式承載您的心意。`;
+    return ensureConsultantClosing(
+      `${occPhrase}，為${who}挑選心意時，建議優先考量本店作品中的${flowers.slice(0, 3).join("、")}等花材。${flowerSentence}。這些乾燥花材可長久保存，能以沉靜而細膩的方式承載您的心意。`
+    );
   }
 
   if (
@@ -400,16 +414,24 @@ export function buildConsultantFallback(
         const hint = flowerMeaningHint(f, ctx.candidates!);
         return hint ? `${f}象徵${hint}` : `${f}適合傳遞${toneParts}的陪伴`;
       });
-      return `依照您描述的情境，慰問療養中的${who}，宜選寓意康復與平安的花材。本店作品中的${flowers.slice(0, 3).join("、")}等花材，${parts.join("；")}。色調以柔和、安定為主，乾燥花材可長久陪伴床邊，讓心意以沉靜而不打擾的方式停留。`;
+      return ensureConsultantClosing(
+        `依照您描述的情境，慰問療養中的${who}時，宜選寓意康復與平安的花材。本店作品中的${flowers.slice(0, 3).join("、")}等花材，${parts.join("；")}。色調以柔和、安定為主，乾燥花材可長久陪伴床邊，讓心意以沉靜而不打擾的方式停留。`
+      );
     }
-    return `依照您描述的情境，慰問療養中的${who}，宜選寓意康復、長壽與平安的花材意象；色調以柔和、安定為主，避免過於鮮豔刺眼。${toneParts}可透過本店乾燥花材中寓意堅韌與陪伴的組合來傳達，讓心意以沉靜而不打擾的方式停留。`;
+    return ensureConsultantClosing(
+      `依照您描述的情境，慰問療養中的${who}時，宜選寓意康復、長壽與平安的花材意象；色調以柔和、安定為主，避免過於鮮豔刺眼。${toneParts}可透過本店乾燥花材中寓意堅韌與陪伴的組合來傳達，讓心意以沉靜而不打擾的方式停留。`
+    );
   }
 
   if (occ === "畢業" || /畢業/.test(story)) {
-    return `您希望以${toneParts}為即將畢業的${who}獻上心意。此時適合選擇象徵前程與希望的色調與花材，如明亮但不浮誇的組合，讓祝福帶有「邁向新階段」的意象。壓花標本可長久保存，適合紀錄這段重要時刻。`;
+    return ensureConsultantClosing(
+      `您希望以${toneParts}為即將畢業的${who}獻上心意。此時適合選擇象徵前程與希望的色調與花材，如明亮但不浮誇的組合，讓祝福帶有「邁向新階段」的意象。壓花標本可長久保存，也很適合紀錄這段重要時刻。`
+    );
   }
 
-  return `依照您的描述，此次送禮對象為${who}，核心氛圍適合圍繞${toneParts}展開。建議優先考量花語與情境相符的花材意象，並以能長久保存的壓花標本承載心意，讓對方在日後翻閱時仍能感受您的溫度。`;
+  return ensureConsultantClosing(
+    `依照您的描述，此次送禮對象為${who}，核心氛圍適合圍繞${toneParts}展開。建議優先考量花語與情境相符的花材意象，並以能長久保存的壓花標本承載心意，讓對方在日後翻閱時仍能感受您的溫度。`
+  );
 }
 
 function parseHighlightTerms(raw: unknown): string[] {
@@ -485,10 +507,12 @@ function parseConsultantReply(
     !isConsultantReplyLowQuality(cleaned, fields) &&
     (tone.romantic || !hasRomanticLeak(cleaned))
   ) {
-    return applyRecommendTone(cleaned.slice(0, 320), tone);
+    return ensureConsultantClosing(applyRecommendTone(cleaned.slice(0, 320), tone));
   }
 
-  return applyRecommendTone(buildConsultantFallback(story, fields, ctx), tone);
+  return ensureConsultantClosing(
+    applyRecommendTone(buildConsultantFallback(story, fields, ctx), tone)
+  );
 }
 
 function parseAnalyzeFieldsResponse(
@@ -981,7 +1005,7 @@ export async function recommendWithOllama(
     raw as { recommendations?: Array<Record<string, unknown>> }
   );
 
-  let valid = pickValidRecommendations(items, allowedIds, slots, pickCount, tone);
+  const valid = pickValidRecommendations(items, allowedIds, slots, pickCount, tone);
 
   if (valid.length < pickCount) {
     try {
