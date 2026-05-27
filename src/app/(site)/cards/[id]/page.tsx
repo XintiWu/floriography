@@ -45,7 +45,7 @@ export default async function CardDetailPage({
                 alt={card.title}
                 fill
                 sizes="(max-width: 1024px) 100vw, 60vw"
-                className="object-cover"
+                className="object-contain"
                 priority
               />
             </div>
