@@ -223,29 +223,18 @@ export function FloriographyExplorer({
     return c.images[0] || activeFlower?.imageUrl || "/demo/pressed-cards.png";
   };
 
-  // 過濾與當前花卉相關的推薦卡片作品
+  // 過濾與當前花卉相關的推薦卡片作品，嚴格篩選包含此花材之卡片
   const suitableCards = useMemo(() => {
-    if (!activeFlower) return cards.slice(0, 4);
+    if (!activeFlower) return [];
     
-    // 找出直接包含該花名的卡片
-    const directMatches = cards.filter((c) =>
-      c.tags.flowers.some((fname) => fname.includes(activeFlower.name) || activeFlower.name.includes(fname))
+    return cards.filter((c) =>
+      c.tags.flowers.some(
+        (fname) =>
+          fname.toLowerCase().includes(activeFlower.name.toLowerCase()) ||
+          activeFlower.name.toLowerCase().includes(fname.toLowerCase())
+      )
     );
-
-    if (directMatches.length > 0) return directMatches;
-
-    // 若無直接對應，透過花語與情緒標籤做次級關聯
-    const relatedMoods = activeFlowerMeanings;
-    const secondaryMatches = cards.filter((c) =>
-      c.tags.moods.some((m) => relatedMoods.includes(m)) ||
-      c.tags.occasions.some((o) => relatedMoods.includes(o))
-    );
-
-    if (secondaryMatches.length > 0) return secondaryMatches.slice(0, 4);
-
-    // 回退展示前幾張精選卡片
-    return cards.slice(0, 4);
-  }, [cards, activeFlower, activeFlowerMeanings]);
+  }, [cards, activeFlower]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -597,199 +586,225 @@ export function FloriographyExplorer({
             </span>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            {suitableCards.map((c, idx) => {
-              const isHighlyRecommended = idx === 0;
+          {suitableCards.length > 0 ? (
+            <div className="grid gap-5 sm:grid-cols-2">
+              {suitableCards.map((c, idx) => {
+                const isHighlyRecommended = idx === 0;
 
-              return (
-                <div
-                  key={c.id}
-                  className={`group relative p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
-                    isHighlyRecommended
-                      ? "border-2 border-[color:var(--accent)] shadow-md shadow-[color:var(--accent)]/5"
-                      : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
-                  }`}
-                >
-                  {isHighlyRecommended && (
-                    <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
-                      最佳適性推薦
-                    </div>
-                  )}
-
-                  {/* 上方創作者/擁有者標記列 */}
-                  <div className="flex items-center justify-between gap-2 border-b border-[color:var(--line)]/60 pb-3 mb-4 pt-1">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-[color:var(--accent-2)]/20 border border-[color:var(--accent-2)]/40 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent-2)]">
-                        ❀
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-[color:var(--muted)] uppercase tracking-wider">
-                          主要花材
-                        </p>
-                        <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate max-w-[80px]">
-                          {c.tags.flowers[0] ?? activeFlower?.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-[9px] text-[color:var(--muted)] uppercase tracking-wider">
-                        供應狀態
-                      </p>
-                      <p className="text-[11px] font-semibold text-[color:var(--accent)]">
-                        {c.status === "available" ? "現貨供應中" : "接受客製預約"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 作品圖：完整顯示不裁切（與情境推薦一致） */}
-                  <div className="mb-4">
-                    {c.images[0] ? (
-                      <div className="relative w-full overflow-hidden rounded-lg border border-[color:var(--line)] bg-[color:var(--background)]">
-                        <span className="absolute top-2 right-2 z-10 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)]/90 px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] backdrop-blur">
-                          #{c.tags.moods[0] ?? "溫暖"}
-                        </span>
-                        <Image
-                          src={c.images[0]}
-                          alt={c.title}
-                          width={c.imageWidth ?? 900}
-                          height={c.imageHeight ?? 1200}
-                          className="h-auto w-full object-contain"
-                          sizes="(max-width: 640px) 100vw, 50vw"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex min-h-[160px] flex-col items-center justify-center rounded-lg border border-[color:var(--line)] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] p-4">
-                        <p className="text-center text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
-                          {c.title}
-                        </p>
-                        <p className="mt-1 text-[11px] text-[color:var(--muted)]">
-                          {c.size ?? "純手工精緻壓花"}
-                        </p>
+                return (
+                  <div
+                    key={c.id}
+                    className={`group relative p-5 transition-all duration-300 flex flex-col justify-between bg-[color:var(--card)] ${
+                      isHighlyRecommended
+                        ? "border-2 border-[color:var(--accent)] shadow-md shadow-[color:var(--accent)]/5"
+                        : "border border-[color:var(--line)] hover:border-[color:var(--accent-2)]/50 shadow-sm"
+                    }`}
+                  >
+                    {isHighlyRecommended && (
+                      <div className="absolute -top-3 left-6 bg-[color:var(--accent)] px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white shadow-sm">
+                        最佳適性推薦
                       </div>
                     )}
-                    <div className="mt-3 flex items-start justify-between gap-2 border-b border-[color:var(--line)]/50 pb-3">
-                      <div>
-                        <p className="text-sm font-[family-name:var(--font-display)] font-bold tracking-wide line-clamp-2">
-                          {c.title}
+
+                    {/* 上方創作者/擁有者標記列 */}
+                    <div className="flex items-center justify-between gap-2 border-b border-[color:var(--line)]/60 pb-3 mb-4 pt-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-[color:var(--accent-2)]/20 border border-[color:var(--accent-2)]/40 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent-2)]">
+                          ❀
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[color:var(--muted)] uppercase tracking-wider">
+                            主要花材
+                          </p>
+                          <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate max-w-[80px]" title={c.tags.flowers.join("、")}>
+                            {c.tags.flowers.join("、") || "綜合花材"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[9px] text-[color:var(--muted)] uppercase tracking-wider">
+                          供應狀態
                         </p>
-                        <p className="mt-0.5 text-[10px] text-[color:var(--muted)]">
-                          {c.size ?? "植物標本"}
+                        <p className="text-[11px] font-semibold text-[color:var(--accent)]">
+                          {c.status === "available" ? "現貨供應中" : "接受客製預約"}
                         </p>
                       </div>
                     </div>
-                  </div>
 
-                  {/* 動態內嵌展開的作品完整規格詳情 (不跳轉頁面) */}
-                  <AnimatePresence initial={false}>
-                    {expandedCardId === c.id ? (
-                      <motion.div
-                        key="detail"
-                        initial={{ height: 0, opacity: 0, y: 6 }}
-                        animate={{ height: "auto", opacity: 1, y: 0 }}
-                        exit={{ height: 0, opacity: 0, y: 6 }}
-                        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                        className="mb-4 overflow-hidden"
-                      >
-                        <div className="border-t border-[color:var(--line)]/60 pt-3 text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
-                          <div>
-                            <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
-                              作品設計理念 / 故事介紹
-                            </span>
-                            <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
-                              {getCardStoryText(c)}
-                            </p>
-                          </div>
+                    {/* 作品圖：完整顯示不裁切（與情境推薦一致） */}
+                    <div className="mb-4">
+                      {c.images[0] ? (
+                        <div className="relative w-full overflow-hidden rounded-lg border border-[color:var(--line)] bg-[color:var(--background)]">
+                          <span className="absolute top-2 right-2 z-10 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)]/90 px-2 py-0.5 text-[9px] font-semibold text-[color:var(--muted)] backdrop-blur">
+                            #{c.tags.moods[0] ?? "溫暖"}
+                          </span>
+                          <Image
+                            src={c.images[0]}
+                            alt={c.title}
+                            width={c.imageWidth ?? 900}
+                            height={c.imageHeight ?? 1200}
+                            className="h-auto w-full object-contain"
+                            sizes="(max-width: 640px) 100vw, 50vw"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex min-h-[160px] flex-col items-center justify-center rounded-lg border border-[color:var(--line)] bg-gradient-to-br from-[color:var(--background)] to-[color:var(--card)] p-4">
+                          <p className="text-center text-lg font-[family-name:var(--font-display)] font-bold tracking-wider text-[color:var(--foreground)]">
+                            {c.title}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[color:var(--muted)]">
+                            {c.size ?? "純手工精緻壓花"}
+                          </p>
+                        </div>
+                      )}
+                      <div className="mt-3 flex items-start justify-between gap-2 border-b border-[color:var(--line)]/50 pb-3">
+                        <div>
+                          <p className="text-sm font-[family-name:var(--font-display)] font-bold tracking-wide line-clamp-2">
+                            {c.title}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-[color:var(--muted)]">
+                            {c.size ?? "植物標本"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
+                    {/* 動態內嵌展開的作品完整規格詳情 (不跳轉頁面) */}
+                    <AnimatePresence initial={false}>
+                      {expandedCardId === c.id ? (
+                        <motion.div
+                          key="detail"
+                          initial={{ height: 0, opacity: 0, y: 6 }}
+                          animate={{ height: "auto", opacity: 1, y: 0 }}
+                          exit={{ height: 0, opacity: 0, y: 6 }}
+                          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                          className="mb-4 overflow-hidden"
+                        >
+                          <div className="border-t border-[color:var(--line)]/60 pt-3 text-left grid gap-2.5 bg-[color:var(--background)]/30 p-3 border border-[color:var(--line)]/40">
                             <div>
-                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
-                                適用場合
+                              <span className="text-[9px] font-bold text-[color:var(--muted)] uppercase tracking-wider block">
+                                作品設計理念 / 故事介紹
                               </span>
-                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                                {c.tags.occasions.join("、") || "通用送禮"}
-                              </span>
+                              <p className="text-xs leading-relaxed text-[color:var(--foreground)] mt-0.5 whitespace-pre-line">
+                                {getCardStoryText(c)}
+                              </p>
                             </div>
-                            <div>
-                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
-                                傳遞心意
-                              </span>
-                              <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
-                                {c.tags.moods.join("、") || "溫暖期盼"}
-                              </span>
-                            </div>
-                          </div>
 
-                          {c.tags.colors?.length > 0 && (
-                            <div className="pt-0.5">
-                              <span className="text-[9px] text-[color:var(--muted)] uppercase block">
-                                視覺主色系
-                              </span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {c.tags.colors.map((colorItem) => (
-                                  <span
-                                    key={colorItem}
-                                    className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
-                                  >
-                                    {colorItem}
-                                  </span>
-                                ))}
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[color:var(--line)]/30">
+                              <div>
+                                <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                  適用場合
+                                </span>
+                                <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                  {c.tags.occasions.join("、") || "通用送禮"}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                  傳遞心意
+                                </span>
+                                <span className="text-[11px] font-medium text-[color:var(--foreground)] block truncate">
+                                  {c.tags.moods.join("、") || "溫暖期盼"}
+                                </span>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
 
-                  {/* 價格列與計算式展示 */}
-                  <div className="flex items-baseline justify-between border-t border-[color:var(--line)]/40 pt-3 mt-1">
-                    <span className="text-xs font-medium text-[color:var(--muted)]">
-                      預訂價格
-                    </span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-[11px] font-bold text-[color:var(--foreground)]">
-                        NT$
+                            {c.tags.colors?.length > 0 && (
+                              <div className="pt-0.5">
+                                <span className="text-[9px] text-[color:var(--muted)] uppercase block">
+                                  視覺主色系
+                                </span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {c.tags.colors.map((colorItem) => (
+                                    <span
+                                      key={colorItem}
+                                      className="rounded bg-[color:var(--foreground)]/5 px-1.5 py-0.5 text-[10px] text-[color:var(--muted)]"
+                                    >
+                                      {colorItem}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+
+                    {/* 價格列與計算式展示 */}
+                    <div className="flex items-baseline justify-between border-t border-[color:var(--line)]/40 pt-3 mt-1">
+                      <span className="text-xs font-medium text-[color:var(--muted)]">
+                        預訂價格
                       </span>
-                      <span className="text-lg font-extrabold tracking-tight text-[color:var(--foreground)]">
-                        {c.priceTwd}
-                      </span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-[11px] font-bold text-[color:var(--foreground)]">
+                          NT$
+                        </span>
+                        <span className="text-lg font-extrabold tracking-tight text-[color:var(--foreground)]">
+                          {c.priceTwd}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 底部按鈕列 */}
+                    <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedCardId((s) => (s === c.id ? null : c.id));
+                        }}
+                        className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
+                          expandedCardId === c.id
+                            ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
+                            : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
+                        }`}
+                      >
+                        {expandedCardId === c.id ? "收起詳情" : "作品詳情"}
+                      </button>
+                      
+                      <Link
+                        href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`h-10 text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
+                          isHighlyRecommended
+                            ? "bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)]/90 shadow-sm shadow-[color:var(--accent)]/20"
+                            : "bg-[color:var(--ink)] text-[color:var(--paper)] hover:bg-black/85"
+                        }`}
+                      >
+                        立即預訂
+                      </Link>
                     </div>
                   </div>
-
-                  {/* 底部按鈕列 */}
-                  <div className="grid grid-cols-2 gap-2 mt-4 pt-1">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedCardId((s) => (s === c.id ? null : c.id));
-                      }}
-                      className={`h-10 border text-xs font-semibold tracking-wide transition-all flex items-center justify-center ${
-                        expandedCardId === c.id
-                          ? "border-[color:var(--accent)] bg-[color:var(--accent)]/10 text-[color:var(--accent)]"
-                          : "border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)]"
-                      }`}
-                    >
-                      {expandedCardId === c.id ? "收起詳情" : "作品詳情"}
-                    </button>
-                    
-                    <Link
-                      href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`h-10 text-xs font-semibold tracking-wide flex items-center justify-center transition-all ${
-                        isHighlyRecommended
-                          ? "bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)]/90 shadow-sm shadow-[color:var(--accent)]/20"
-                          : "bg-[color:var(--ink)] text-[color:var(--paper)] hover:bg-black/85"
-                      }`}
-                    >
-                      立即預訂
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed border-[color:var(--line)] bg-[color:var(--card)]/40 rounded-3xl text-center py-16">
+              <span className="text-4xl mb-4 text-[color:var(--accent)] animate-pulse" aria-hidden>❀</span>
+              <h3 className="text-base font-bold text-[color:var(--foreground)] mb-2">
+                目前尚無包含「{activeFlower?.name}」花材的現成作品
+              </h3>
+              <p className="text-xs text-[color:var(--muted)] max-w-sm mx-auto mb-6 leading-relaxed">
+                您可以透過下方預訂客製化服務，將「{activeFlower?.name}」花材融入您的專屬作品中，或是透過「依意境尋找」瀏覽其他寓意相近的花卉。
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <Link
+                  href={`/reserve?customFlower=${encodeURIComponent(activeFlower?.name || "")}`}
+                  className="h-10 px-6 text-xs font-semibold tracking-wider bg-[color:var(--accent)] text-white hover:bg-[color:var(--accent)]/95 shadow-sm shadow-[color:var(--accent)]/20 flex items-center justify-center transition-all"
+                >
+                  立即客製此花材卡片
+                </Link>
+                <button
+                  onClick={() => setSearchMode("meaning")}
+                  className="h-10 px-6 text-xs font-semibold tracking-wide border border-[color:var(--line)] bg-transparent text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/5 hover:text-[color:var(--foreground)] transition-all"
+                >
+                  尋找相近意境花卉
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* 底部互動提示橫幅 */}
           <div className="mt-4 border border-[color:var(--line)] bg-[color:var(--card)]/60 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">

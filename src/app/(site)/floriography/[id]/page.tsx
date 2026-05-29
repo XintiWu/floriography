@@ -76,15 +76,27 @@ export default async function FlowerDetailPage({
               含此花材的標本卡作品。
             </p>
             <div className="mt-4 grid gap-2">
-              {(related.length ? related : allCards.slice(0, 3)).map((c) => (
-                <Link
-                  key={c.id}
-                  href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
-                  className="rounded-2xl border border-[color:var(--line)] px-4 py-3 text-sm font-semibold tracking-wide hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  {c.title}
-                </Link>
-              ))}
+              {related.length ? (
+                related.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/reserve?cardId=${encodeURIComponent(c.id)}`}
+                    className="rounded-2xl border border-[color:var(--line)] px-4 py-3 text-sm font-semibold tracking-wide hover:bg-black/5 dark:hover:bg-white/10 text-left block"
+                  >
+                    {c.title}
+                  </Link>
+                ))
+              ) : (
+                <div className="text-xs text-[color:var(--muted)] py-6 px-4 text-center border border-dashed border-[color:var(--line)] bg-[color:var(--card)]/50 rounded-2xl">
+                  <p className="mb-2">目前尚無包含此花材的現成作品。</p>
+                  <Link
+                    href={`/reserve?customFlower=${encodeURIComponent(flower.name)}`}
+                    className="inline-block font-semibold text-[color:var(--accent)] hover:underline"
+                  >
+                    立即預訂客製化作品 →
+                  </Link>
+                </div>
+              )}
             </div>
             <div className="mt-4 text-xs text-[color:var(--muted)]">
               想用情境直接挑？去{" "}

@@ -15,6 +15,7 @@ export default async function ReservePage({
 }) {
   const sp = (await searchParams) ?? {};
   const cardId = typeof sp.cardId === "string" ? sp.cardId : "";
+  const customFlower = typeof sp.customFlower === "string" ? sp.customFlower : "";
   const card = cardId ? await getCardById(cardId) : undefined;
 
   return (
@@ -64,7 +65,7 @@ export default async function ReservePage({
       <Container className="py-10 sm:py-12">
         <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
           <div className="lg:col-span-7">
-            <ReserveForm defaultCardId={cardId} />
+            <ReserveForm defaultCardId={cardId} defaultCustomFlower={customFlower} />
           </div>
           <aside className="lg:col-span-5 lg:sticky lg:top-24">
             <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-6">

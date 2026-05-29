@@ -51,7 +51,13 @@ function Field({
   );
 }
 
-export function ReserveForm({ defaultCardId }: { defaultCardId?: string }) {
+export function ReserveForm({
+  defaultCardId,
+  defaultCustomFlower,
+}: {
+  defaultCardId?: string;
+  defaultCustomFlower?: string;
+}) {
   const [form, setForm] = useState<FormState>({
     cardId: defaultCardId || "",
     customerName: "",
@@ -61,7 +67,9 @@ export function ReserveForm({ defaultCardId }: { defaultCardId?: string }) {
     budgetTwd: "",
     purpose: "",
     notes: "",
-    customRequest: "",
+    customRequest: defaultCustomFlower
+      ? `【客製指定花材】\n希望能預訂包含「${defaultCustomFlower}」花材的客製化作品。`
+      : "",
   });
 
   const [submitting, setSubmitting] = useState(false);
