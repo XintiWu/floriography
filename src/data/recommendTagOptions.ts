@@ -95,6 +95,6 @@ export function customMeaningFromField(flowerMeaning: string | undefined): strin
     .split(TAG_SEP)
     .map((p) => p.trim())
     .filter(Boolean);
-  const known = new Set([...FLOWER_MEANING_TAGS, ...MOOD_ATMOSPHERE_TAGS]);
+  const known = new Set<string>([...FLOWER_MEANING_TAGS, ...MOOD_ATMOSPHERE_TAGS]);
   return parts.filter((p) => !known.has(p)).join("、");
 }
