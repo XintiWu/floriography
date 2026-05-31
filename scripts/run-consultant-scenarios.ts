@@ -64,7 +64,7 @@ async function runOne(
   story: string,
   llm: ReturnType<typeof createRecommendLlm>
 ) {
-  const data = getFlowerCatalog();
+  const data = await getFlowerCatalog();
   const storyRanked = scoreCatalogLocally({ story }, data);
   const pool = storyRanked.slice(0, LLM_TOP_K);
   const candidates = pool.map(({ card }) => summarizeCard(card));
