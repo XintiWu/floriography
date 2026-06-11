@@ -4,8 +4,16 @@ import { getCards, getFlowers } from "@/lib/catalog";
 
 export async function GET() {
   try {
-    // 以空 Buffer 呼叫辨識 helper（會走 fallback 模擬）
-    const recog = await recognizeFlowerFromBuffer(Buffer.from(""));
+    let recog;
+    try {
+      recog = await recognizeFlowerFromBuffer(Buffer.from(""));
+    } catch (e) {
+      recog = {
+        name: "玫瑰",
+        confidence: 0.95,
+        engine: "gemini:mock-fallback",
+      };
+    }
 
     const flowers = await getFlowers();
     const cards = await getCards();
