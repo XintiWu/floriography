@@ -155,7 +155,19 @@ export default function RecognizePage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error || "辨識失敗，請稍後再試。");
+        if (data?.error === "geminiserverbusy" || data?.error === "GeminiServerBusy") {
+          setError("Gemini現在很忙，等等再試吧！");
+        } else if (data?.error === "api_key_missing") {
+          setError("請先在伺服器上設定 GEMINI_API_KEY 環境變數以啟用花朵辨識服務。");
+        } else if (data?.error === "invalid_response") {
+          setError("無法解析辨識服務的回傳結果。");
+        } else if (data?.error === "api_error") {
+          setError("呼叫辨識服務時發生錯誤。");
+        } else if (data?.error === "internal_error") {
+          setError("伺服器發生內部錯誤，請稍後再試。");
+        } else {
+          setError(data?.message || data?.error || "辨識失敗，請稍後再試。");
+        }
         setPhase("idle");
       } else {
         setResponse(data);

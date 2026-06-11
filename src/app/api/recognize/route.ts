@@ -32,12 +32,10 @@ export async function POST(req: Request) {
     } catch (err) {
       if (err instanceof Error) {
         if (err.message === "GeminiServerBusy") {
-          serverBusy = true;
-          recog = {
-            name: "",
-            confidence: 0,
-            engine: "gemini:server-busy",
-          };
+          return NextResponse.json(
+            { error: "geminiserverbusy", message: "Gemini現在很忙，等等再試吧！" },
+            { status: 503 }
+          );
         } else if (err.message === "GeminiApiKeyMissing") {
           return NextResponse.json(
             { error: "api_key_missing", message: "請先在伺服器上設定 GEMINI_API_KEY 環境變數以啟用花朵辨識服務。" },

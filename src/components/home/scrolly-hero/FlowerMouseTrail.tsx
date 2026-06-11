@@ -13,10 +13,11 @@ export function FlowerMouseTrail() {
   const { camera } = useThree();
   
   // Load botanical textures
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qgztehnwwsjdutqavenu.supabase.co";
   const textures = useTexture([
-    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_1_1777573303466.png",
-    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_2_1777573317449.png",
-    "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/botanical/botanical_3_1777573330011.png"
+    `${supabaseUrl}/storage/v1/object/public/designs/botanical/botanical_1_1777573303466.png`,
+    `${supabaseUrl}/storage/v1/object/public/designs/botanical/botanical_2_1777573317449.png`,
+    `${supabaseUrl}/storage/v1/object/public/designs/botanical/botanical_3_1777573330011.png`
   ]);
 
   useMemo(() => {
