@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { parseMeaningsMd } from "../src/lib/meaningsParser";
 import { extractDominantColorLabels } from "./lib/extractImageColors";
+import { embedBatch } from "./lib/geminiEmbed";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -163,6 +164,8 @@ type CatalogCard = {
   imageWidth?: number;
   imageHeight?: number;
   indexText: string;
+  /** Gemini text-embedding-004 vector (768 dims). Present when GEMINI_API_KEY is set at build time. */
+  embedding?: number[];
 };
 
 const imageMetaCache = new Map<string, { w: number; h: number }>();
@@ -324,6 +327,45 @@ async function main(): Promise<void> {
   }
 
   const dictionary = [...nameSet].sort((a, b) => b.length - a.length);
+
+  // ── Gemini Embedding (optional) ──────────────────────────────────────────
+  const skipEmbed = !process.env.GEMINI_API_KEY?.trim();
+  if (skipEmbed) {
+    console.warn(
+      "[build-flower-catalog] GEMINI_API_KEY not set — skipping embedding step (字串比對模式)"
+    );
+  } else {
+    console.log(
+      `[build-flower-catalog] 生成 ${cards.length} 張花卡的 Gemini embedding…（可能需 10~30 秒）`
+    );
+    // Build a compact embed text per card (truncated to ~1500 chars for token budget)
+    const embedTexts = cards.map((c) =>
+      [
+        c.tags.flowers.join("、"),
+        c.tags.occasions.join("、"),
+        c.tags.moods.join("、"),
+        c.tags.colors.join("、"),
+        c.blurb,
+      ]
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1500)
+    );
+    try {
+      const vectors = await embedBatch(embedTexts);
+      for (let i = 0; i < cards.length; i++) {
+        cards[i]!.embedding = vectors[i];
+      }
+      console.log(
+        `[build-flower-catalog] embedding 完成，向量維度 ${vectors[0]?.length ?? 0}`
+      );
+    } catch (err) {
+      console.error(
+        "[build-flower-catalog] embedding 失敗，繼續以無向量模式輸出：",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
 
   const outDir = join(ROOT, "src", "data");
   mkdirSync(outDir, { recursive: true });

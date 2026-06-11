@@ -76,6 +76,82 @@ else
   done
 fi
 
+# --- Embedding 語意品質驗收（需 Gemini API key）---
+CATALOG="src/data/flowerCatalog.json"
+echo ""
+echo "=== Embedding 驗收測試 ==="
+
+# E01 — catalog 存在
+if [ -f "$CATALOG" ]; then
+  RESULTS+=("PASS|E01|flowerCatalog.json 存在|OK")
+  PASS=$((PASS + 1))
+else
+  RESULTS+=("FAIL|E01|flowerCatalog.json 存在|找不到 $CATALOG")
+  FAIL=$((FAIL + 1))
+fi
+
+# E02 — catalog 有 embeddedAt（代表跑過 embed-catalog.ts）
+if [ -f "$CATALOG" ]; then
+  HAS_EMBED=$(python3 -c "import json; d=json.load(open('$CATALOG')); print('yes' if d.get('embeddedAt') else 'no')" 2>/dev/null || echo "error")
+  if [ "$HAS_EMBED" = "yes" ]; then
+    RESULTS+=("PASS|E02|catalog 含 embeddedAt 時間戳|OK")
+    PASS=$((PASS + 1))
+  else
+    RESULTS+=("FAIL|E02|catalog 含 embeddedAt 時間戳|未找到 embeddedAt，請執行 npm run embed:catalog")
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
+# E03 — 所有花卡都有 embedding 向量
+if [ -f "$CATALOG" ]; then
+  EMBED_COUNT=$(python3 -c "
+import json
+d = json.load(open('$CATALOG'))
+total = len(d['cards'])
+with_emb = sum(1 for c in d['cards'] if c.get('embedding') and len(c['embedding']) > 0)
+print(f'{with_emb}/{total}')
+" 2>/dev/null || echo "error")
+  TOTAL=$(python3 -c "import json; d=json.load(open('$CATALOG')); print(len(d['cards']))" 2>/dev/null || echo "0")
+  if [ "$EMBED_COUNT" = "${TOTAL}/${TOTAL}" ]; then
+    RESULTS+=("PASS|E03|所有花卡有 embedding ($EMBED_COUNT)|OK")
+    PASS=$((PASS + 1))
+  else
+    RESULTS+=("FAIL|E03|所有花卡有 embedding|只有 $EMBED_COUNT 有向量，請執行 npm run embed:catalog")
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
+# E04 — embedding 維度正確（3072）
+if [ -f "$CATALOG" ]; then
+  DIM=$(python3 -c "
+import json
+d = json.load(open('$CATALOG'))
+for c in d['cards']:
+    if c.get('embedding'):
+        print(len(c['embedding']))
+        break
+" 2>/dev/null || echo "0")
+  if [ "$DIM" = "3072" ]; then
+    RESULTS+=("PASS|E04|embedding 維度 3072|OK")
+    PASS=$((PASS + 1))
+  else
+    RESULTS+=("FAIL|E04|embedding 維度 3072|實際維度 $DIM")
+    FAIL=$((FAIL + 1))
+  fi
+fi
+
+# E05 — analyze API 回傳欄位含 recommendations（有 LLM 時）
+if curl -s -m 2 http://127.0.0.1:11434/api/tags > /dev/null 2>&1 || [ -n "${GEMINI_API_KEY:-}" ]; then
+  run_test E05 "analyze 失戀情境 → 含 recommendations" 200 "" \
+    '{"mode":"analyze","story":"朋友最近失戀了，很難過，想送花慰藉他"}' 120
+else
+  RESULTS+=("SKIP|E05|analyze 失戀情境|(無 LLM 可用)")
+fi
+
+# E06 — refine API 回傳含 recommendations 且 engine 欄位存在
+run_test E06 "refine 結構化欄位回傳格式正確" 200 "" \
+  '{"mode":"refine","occasion":"生日","mood":"祝福","recipient":"媽媽"}' 30
+
 echo ""
 for line in "${RESULTS[@]}"; do
   IFS='|' read -r status tid desc detail <<< "$line"

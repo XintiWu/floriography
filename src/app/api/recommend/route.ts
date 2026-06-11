@@ -4,6 +4,7 @@ import type { Card } from "@/lib/types";
 import {
   getFlowerCatalog,
   scoreCatalogLocally,
+  scoreCatalogWithEmbedding,
   toPublicCard,
   validateRecommendInput,
   type CatalogCard,
@@ -179,7 +180,7 @@ async function runAnalyzePipeline(story: string): Promise<{
   const engineBase = llm.getEngineLabel();
   const data = getFlowerCatalog();
 
-  const storyRanked = scoreCatalogLocally({ story }, data);
+  const storyRanked = await scoreCatalogWithEmbedding({ story }, data);
   const storyPool = storyRanked.slice(0, LLM_TOP_K);
   const candidates = storyPool.map(({ card }) => summarizeCardForLlm(card));
 
@@ -212,7 +213,7 @@ async function runAnalyzePipeline(story: string): Promise<{
     flowerMeaning: fields.flowerMeaning,
   };
 
-  const fullRanked = scoreCatalogLocally(input, data);
+  const fullRanked = await scoreCatalogWithEmbedding(input, data);
   const fullPool = fullRanked.slice(0, LLM_TOP_K);
   const allowed = buildAllowedMap([storyPool, fullPool]);
 
@@ -270,7 +271,7 @@ async function runRecommendPipeline(input: RecommendInput): Promise<{
   await llm.ready();
   const engineBase = llm.getEngineLabel();
   const data = getFlowerCatalog();
-  const localRanked = scoreCatalogLocally(
+  const localRanked = await scoreCatalogWithEmbedding(
     {
       ...input,
       occasion: normalizeOccasionForScoring(input.occasion),
