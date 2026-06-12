@@ -343,17 +343,13 @@ function mergeEnumField(
   fromRules: string | undefined,
   keywordMap: Record<string, string[]>
 ): string | undefined {
-  if (fromRules && (!current || !enumFieldInStory(story, current, keywordMap))) {
-    return fromRules;
-  }
-  if (current && !enumFieldInStory(story, current, keywordMap)) {
-    return fromRules;
-  }
-  return current ?? fromRules;
+  // Trust the LLM's output if available, otherwise fall back to rules
+  return current?.trim() || fromRules;
 }
 
 /**
- * 預算、色調、花語僅在原文可佐證時保留；對象／場合／情緒以原文規則補正 LLM 漏填或幻覺。
+ * Trust the LLM-extracted fields (mood, flowerMeaning, recipient, occasion)
+ * and only fall back to rule-based parsing when LLM outputs are empty.
  */
 export function coerceFieldsFromStory(
   story: string,
@@ -375,21 +371,14 @@ export function coerceFieldsFromStory(
     delete out.color;
   }
 
-  if (out.flowerMeaning && !flowerMeaningInStory(t, out.flowerMeaning)) {
-    delete out.flowerMeaning;
-  }
-  if (!out.flowerMeaning?.trim() && fromRules.flowerMeaning) {
+  // Trust the LLM's flowerMeaning if present, otherwise use rule-based parsing
+  if (!out.flowerMeaning?.trim()) {
     out.flowerMeaning = fromRules.flowerMeaning;
   }
 
-  const rulesRecipient = fromRules.recipient;
-  const llmRecipient = out.recipient?.trim();
-  if (rulesRecipient) {
-    if (!llmRecipient || !recipientInStory(t, llmRecipient)) {
-      out.recipient = rulesRecipient;
-    }
-  } else if (llmRecipient && !recipientInStory(t, llmRecipient)) {
-    delete out.recipient;
+  // Trust the LLM's recipient if present, otherwise use rule-based parsing
+  if (!out.recipient?.trim()) {
+    out.recipient = fromRules.recipient;
   }
 
   out.occasion = mergeEnumField(t, out.occasion, fromRules.occasion, OCCASION_KEYWORDS);

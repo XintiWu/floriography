@@ -167,36 +167,52 @@ async function ollamaChat(
   options: { maxOutputTokens?: number } = {}
 ): Promise<string> {
   const host = getOllamaHost();
-  const res = await fetch(`${host}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      format: "json",
-      stream: false,
-      options: {
-        temperature: 0.35,
-        ...(options.maxOutputTokens != null
-          ? { num_predict: options.maxOutputTokens }
-          : {}),
-      },
-    }),
-    signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
-  }).catch(() => null);
+  
+  const runChat = async (useJsonFormat: boolean) => {
+    const res = await fetch(`${host}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        ...(useJsonFormat ? { format: "json" } : {}),
+        stream: false,
+        options: {
+          temperature: 0.35,
+          ...(options.maxOutputTokens != null
+            ? { num_predict: options.maxOutputTokens }
+            : {}),
+        },
+      }),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    }).catch(() => null);
 
-  if (!res?.ok) {
-    throw new LlmUnavailableError(
-      `Ollama 請求失敗（${res?.status ?? "無回應"}）。請確認 ollama serve 正在運行。`
-    );
+    if (!res?.ok) {
+      throw new LlmUnavailableError(
+        `Ollama 請求失敗（${res?.status ?? "無回應"}）。請確認 ollama serve 正在運行。`
+      );
+    }
+
+    const data = await res.json();
+    return data?.message?.content;
+  };
+
+  let text = await runChat(true);
+
+  // If Ollama returned empty or functionally empty JSON, retry without forcing JSON format constraint
+  if (!text || typeof text !== "string" || text.trim() === "" || text.trim() === "{}") {
+    console.warn("Ollama JSON format returned empty response. Retrying without format constraint...");
+    try {
+      text = await runChat(false);
+    } catch (err) {
+      console.warn("Ollama retry chat failed:", err);
+    }
   }
 
-  const data = await res.json();
-  const text = data?.message?.content;
-  if (!text || typeof text !== "string") {
+  if (!text || typeof text !== "string" || text.trim() === "") {
     throw new LlmParseError("Ollama 回傳內容為空");
   }
   return text;
