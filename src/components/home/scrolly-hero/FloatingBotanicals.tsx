@@ -9,6 +9,7 @@ import { MotionValue } from "framer-motion";
 export function FloatingBotanicals({ scrollProgress }: { scrollProgress: MotionValue<number> }) {
   const groupRef = useRef<THREE.Group>(null);
   
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://qgztehnwwsjdutqavenu.supabase.co";
   const textures = useTexture([
     "/images/botanical/botanical_1_1777573303466.png",
     "/images/botanical/botanical_2_1777573317449.png",
