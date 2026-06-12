@@ -924,7 +924,13 @@ export async function parseStoryWithOllama(
 ): Promise<ParsedStoryFields> {
   await llm.ready();
   const text = await llm.chat(PARSE_PROMPT, story.trim(), { maxOutputTokens: 256 });
-  const parsed = PARSE_SCHEMA.safeParse(extractJsonObject(text));
+  let jsonObj: unknown;
+  try {
+    jsonObj = extractJsonObject(text);
+  } catch {
+    throw new LlmParseError("無法解析 LLM 回傳的情境欄位");
+  }
+  const parsed = PARSE_SCHEMA.safeParse(jsonObj);
   if (!parsed.success) {
     throw new LlmParseError("無法解析 LLM 回傳的情境欄位");
   }

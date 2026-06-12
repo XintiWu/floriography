@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Container } from "@/components/Container";
-import { RecommendForm } from "@/components/recommend/RecommendForm";
+import { RecommendFormWrapper } from "@/components/recommend/RecommendFormWrapper";
 
 export const metadata: Metadata = {
   title: "情境推薦",
@@ -39,9 +39,8 @@ export default function RecommendPage() {
       </div>
 
       <Container className="py-10 sm:py-12">
-        <RecommendForm />
+        <RecommendFormWrapper />
       </Container>
     </main>
   );
 }
-
