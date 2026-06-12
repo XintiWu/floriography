@@ -8,7 +8,7 @@ export type RecommendLlm = {
   chat: (
     system: string,
     user: string,
-    options?: { maxOutputTokens?: number }
+    options?: { maxOutputTokens?: number; thinkingBudget?: number }
   ) => Promise<string>;
   getEngineLabel: () => string;
   ready: () => Promise<void>;
@@ -37,7 +37,7 @@ function shouldFallbackToOllama(error: unknown): boolean {
 async function geminiChat(
   system: string,
   user: string,
-  options: { maxOutputTokens?: number } = {}
+  options: { maxOutputTokens?: number; thinkingBudget?: number } = {}
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
@@ -47,6 +47,9 @@ async function geminiChat(
   }
 
   const model = getGeminiRecommendModel();
+  // Gemini 2.5 系列是思考模型（Thinking Model），思考 token 計入 maxOutputTokens 配額。
+  // 預設限制思考預算為 1024，避免大量思考 token 擠壓實際輸出空間。
+  const thinkingBudget = options.thinkingBudget ?? 1024;
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
@@ -59,6 +62,7 @@ async function geminiChat(
           temperature: 0.35,
           responseMimeType: "application/json",
           maxOutputTokens: options.maxOutputTokens ?? 1024,
+          thinkingConfig: { thinkingBudget },
         },
       }),
       signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
@@ -91,12 +95,22 @@ async function geminiChat(
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text || typeof text !== "string") {
     const blockReason = data?.candidates?.[0]?.finishReason;
+    console.log(
+      "[Gemini] 未取得文字內容，完整回應：",
+      JSON.stringify(data).slice(0, 600)
+    );
     throw new LlmParseError(
       blockReason
         ? `Gemini 未回傳內容（${blockReason}）`
         : "Gemini 回傳內容為空"
     );
   }
+  console.log(
+    `[Gemini] model=${getGeminiRecommendModel()}`,
+    `finishReason=${data?.candidates?.[0]?.finishReason ?? "?"}`,
+    `len=${text.length}`,
+    `preview=${JSON.stringify(text.slice(0, 200))}`
+  );
   return text;
 }
 
@@ -197,18 +211,25 @@ async function ollamaChat(
     }
 
     const data = await res.json();
-    return data?.message?.content;
+    const content = data?.message?.content;
+    console.log(
+      `[Ollama${useJsonFormat ? " JSON" : " free"}] model=${model}`,
+      `stop_reason=${data?.message?.stop_reason ?? data?.done_reason ?? "?"}`,
+      `len=${typeof content === "string" ? content.length : "N/A"}`,
+      `preview=${typeof content === "string" ? JSON.stringify(content.slice(0, 300)) : content}`
+    );
+    return content;
   };
 
   let text = await runChat(true);
 
   // If Ollama returned empty or functionally empty JSON, retry without forcing JSON format constraint
   if (!text || typeof text !== "string" || text.trim() === "" || text.trim() === "{}") {
-    console.warn("Ollama JSON format returned empty response. Retrying without format constraint...");
+    console.warn("[Ollama] JSON format 回傳空內容，改用 free-text 重試...");
     try {
       text = await runChat(false);
     } catch (err) {
-      console.warn("Ollama retry chat failed:", err);
+      console.warn("[Ollama] free-text 重試也失敗:", err);
     }
   }
 
@@ -259,7 +280,7 @@ export function createRecommendLlm(): RecommendLlm {
   async function chat(
     system: string,
     user: string,
-    options?: { maxOutputTokens?: number }
+    options?: { maxOutputTokens?: number; thinkingBudget?: number }
   ): Promise<string> {
     await ensureBackend();
 

@@ -568,7 +568,7 @@ async function fetchRecommendationsOnly(
         .join("\n");
   const user = `${context}\n\n候選(n=編號，cardId 填 n)：\n${JSON.stringify(compact)}`;
   const text = await llm.chat(RECOMMEND_ONLY_SYSTEM(pickCount), user, {
-    maxOutputTokens: 1024,
+    maxOutputTokens: 1500,
   });
   let items: Array<{ cardId: string; score: number; why: string }>;
   try {
@@ -767,7 +767,7 @@ export async function analyzeStoryWithOllama(
     .join("\n\n");
 
   const fieldsText = await llm.chat(ANALYZE_FIELDS_SYSTEM(), user, {
-    maxOutputTokens: 900,
+    maxOutputTokens: 1500,
   });
   aiCallCount += 1;
 
@@ -923,24 +923,17 @@ export async function parseStoryWithOllama(
   llm: RecommendLlm = createRecommendLlm()
 ): Promise<ParsedStoryFields> {
   await llm.ready();
-  const text = await llm.chat(PARSE_PROMPT, story.trim(), { maxOutputTokens: 256 });
-  let jsonObj: unknown;
+  const text = await llm.chat(PARSE_PROMPT, story.trim(), {
+    maxOutputTokens: 1024,
+    thinkingBudget: 512,
+  });
+  let raw: Record<string, unknown>;
   try {
-    jsonObj = extractJsonObject(text);
+    raw = extractJsonObject(text) as Record<string, unknown>;
   } catch {
     throw new LlmParseError("無法解析 LLM 回傳的情境欄位");
   }
-  const parsed = PARSE_SCHEMA.safeParse(jsonObj);
-  if (!parsed.success) {
-    throw new LlmParseError("無法解析 LLM 回傳的情境欄位");
-  }
-  const { budget, flowerMeaning, ...rest } = parsed.data;
-  const sanitized = sanitizeParsedFields({
-    ...rest,
-    budget: budget ?? undefined,
-    flowerMeaning: flowerMeaning?.trim() || undefined,
-  });
-  return coerceFieldsFromStory(story, sanitized);
+  return parseFieldsFromRaw(story, raw);
 }
 
 function formatInputForPrompt(
@@ -998,7 +991,7 @@ export async function recommendWithOllama(
     .join("\n\n");
 
   const text = await llm.chat(RECOMMEND_ONLY_SYSTEM(pickCount), user, {
-    maxOutputTokens: 1200,
+    maxOutputTokens: 1600,
   });
   let raw: Record<string, unknown>;
   try {

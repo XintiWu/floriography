@@ -24,6 +24,10 @@ export function extractJsonObject(text: string): unknown {
     }
     const salvaged = salvagePartialPayload(trimmed);
     if (salvaged) return salvaged;
+    console.log(
+      "[llmJson] extractJsonObject 全部策略失敗，原始文字（前 400 字）:",
+      JSON.stringify(trimmed.slice(0, 400))
+    );
     throw new Error("invalid_json");
   }
 }
