@@ -143,7 +143,7 @@ async function main() {
   console.log(B("═══════════════════════════════════════════════════════════════"));
   console.log(`\nGEMINI_API_KEY：${hasKey ? G("已設定（完整模式）") : Y("未設定（只跑字串比對）")}\n`);
 
-  const data = getFlowerCatalog();
+  const data = await getFlowerCatalog();
   const hasEmbeddings = data.cards.some((c) => (c as { embedding?: number[] }).embedding?.length);
   console.log(`Catalog：${data.cards.length} 張花卡，embedding：${hasEmbeddings ? G("✓") : Y("✗（僅字串模式）")}\n`);
 

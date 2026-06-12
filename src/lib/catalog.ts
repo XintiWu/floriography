@@ -109,21 +109,27 @@ function enrichCard(row: any): Card {
   };
 }
 
+/** OCI `designs` 表；未設定 DB、查詢失敗或無資料時回傳 null */
+export async function getOciDesignCards(): Promise<Card[] | null> {
+  if (!isDbConfigured()) return null;
+  try {
+    const result = await query(`
+      SELECT * FROM designs
+      ORDER BY created_at DESC
+    `);
+    if (result.rows.length === 0) return null;
+    return result.rows.map(enrichCard);
+  } catch (err) {
+    console.error("Failed to fetch cards from OCI:", err);
+    return null;
+  }
+}
+
 export async function getCards(): Promise<Card[]> {
   // 1. Try OCI Database if configured
-  if (isDbConfigured()) {
-    try {
-      const result = await query(`
-        SELECT * FROM designs 
-        ORDER BY created_at DESC
-      `);
-      
-      if (result.rows.length > 0) {
-        return result.rows.map(enrichCard);
-      }
-    } catch (err) {
-      console.error("Failed to fetch cards from OCI:", err);
-    }
+  const ociCards = await getOciDesignCards();
+  if (ociCards?.length) {
+    return ociCards;
   }
 
   // 2. Try Supabase
@@ -150,11 +156,14 @@ export async function getCardById(id: string): Promise<Card | null> {
   // 1. Try OCI Database if configured
   if (isDbConfigured()) {
     try {
-      const result = await query(`
-        SELECT * FROM designs 
+      const result = await query(
+        `
+        SELECT * FROM designs
         WHERE id = $1
-      `, [id]);
-      
+      `,
+        [id]
+      );
+
       if (result.rows.length > 0) {
         return enrichCard(result.rows[0]);
       }

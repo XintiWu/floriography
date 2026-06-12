@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev --turbopack",
     "predev": "npm run build:catalog",
     "build:catalog": "tsx scripts/build-flower-catalog.ts",
     "verify:descriptions": "node scripts/verify-descriptions.mjs",

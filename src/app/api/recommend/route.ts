@@ -178,7 +178,7 @@ async function runAnalyzePipeline(story: string): Promise<{
   const llm = createRecommendLlm();
   await llm.ready();
   const engineBase = llm.getEngineLabel();
-  const data = getFlowerCatalog();
+  const data = await getFlowerCatalog();
 
   const storyRanked = await scoreCatalogWithEmbedding({ story }, data);
   const storyPool = storyRanked.slice(0, LLM_TOP_K);
@@ -270,7 +270,7 @@ async function runRecommendPipeline(input: RecommendInput): Promise<{
   const llm = createRecommendLlm();
   await llm.ready();
   const engineBase = llm.getEngineLabel();
-  const data = getFlowerCatalog();
+  const data = await getFlowerCatalog();
   const localRanked = await scoreCatalogWithEmbedding(
     {
       ...input,

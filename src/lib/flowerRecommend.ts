@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getOciDesignCards } from "@/lib/catalog";
+import { isDbConfigured } from "@/lib/dbConfig";
 import {
   normalizeMoodPartForScoring,
   splitTagField,
@@ -49,6 +51,47 @@ const EMBED_WEIGHT = 60;
 
 let catalogCache: FlowerCatalogData | null = null;
 
+function buildIndexText(card: Card): string {
+  return [
+    card.tags.flowers.join(" "),
+    card.title,
+    card.blurb ?? "",
+    card.description ?? "",
+    card.tags.occasions.join(" "),
+    card.tags.moods.join(" "),
+    card.tags.colors.join(" "),
+  ]
+    .join("\n")
+    .toLowerCase();
+}
+
+function cardsToCatalogData(cards: Card[], builtAt?: string): FlowerCatalogData {
+  const catalogCards: CatalogCard[] = cards.map((card) => ({
+    ...card,
+    indexText: buildIndexText(card),
+  }));
+  const nameSet = new Set<string>();
+  for (const c of catalogCards) {
+    for (const f of c.tags.flowers) nameSet.add(f);
+  }
+  const dictionary = [...nameSet].sort((a, b) => b.length - a.length);
+  return {
+    cards: catalogCards,
+    dictionary,
+    builtAt: builtAt ?? new Date().toISOString(),
+  };
+}
+
+function loadFlowerCatalogFromFile(): FlowerCatalogData {
+  const path = join(process.cwd(), "src/data/flowerCatalog.json");
+  if (!existsSync(path)) {
+    throw new Error(
+      "找不到 src/data/flowerCatalog.json。請在專案根目錄執行：npm run build:catalog（或 npm run dev，會自動執行 predev）"
+    );
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+}
+
 // ── Embedding helpers (runtime) ─────────────────────────────────────────
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -92,20 +135,29 @@ export async function embedQueryText(text: string): Promise<number[] | null> {
   }
 }
 
-export function getFlowerCatalog(): FlowerCatalogData {
-  const path = join(process.cwd(), "src/data/flowerCatalog.json");
-  if (!existsSync(path)) {
-    throw new Error(
-      "找不到 src/data/flowerCatalog.json。請在專案根目錄執行：npm run build:catalog（或 npm run dev，會自動執行 predev）"
-    );
+
+/** 情境推薦目錄：優先 OCI `designs`（與花語 `assets` 相同連線），否則本地 flowerCatalog.json */
+export async function getFlowerCatalog(): Promise<FlowerCatalogData> {
+  if (process.env.NODE_ENV === "production" && catalogCache) {
+    return catalogCache;
   }
-  if (process.env.NODE_ENV !== "production") {
-    return JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+
+  if (isDbConfigured()) {
+    const ociCards = await getOciDesignCards();
+    if (ociCards?.length) {
+      const data = cardsToCatalogData(ociCards);
+      if (process.env.NODE_ENV === "production") {
+        catalogCache = data;
+      }
+      return data;
+    }
   }
-  if (!catalogCache) {
-    catalogCache = JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+
+  const data = loadFlowerCatalogFromFile();
+  if (process.env.NODE_ENV === "production") {
+    catalogCache = data;
   }
-  return catalogCache;
+  return data;
 }
 
 export function toPublicCard(c: CatalogCard): Card {
@@ -331,11 +383,11 @@ export function scoreCatalogLocally(
   return normalizeDisplayScores(ranked);
 }
 
-export function recommendFlowerDb(
+export async function recommendFlowerDb(
   input: RecommendInput,
   top = 3
-): ScoredRecommendation[] {
-  const data = getFlowerCatalog();
+): Promise<ScoredRecommendation[]> {
+  const data = await getFlowerCatalog();
   const ranked = scoreCatalogLocally(input, data);
   return ranked.slice(0, top).map(({ card, score, why }) => ({
     card: toPublicCard(card),

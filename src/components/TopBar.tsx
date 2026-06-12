@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { useEditorState } from '../store/useEditorState';
-import { Download, Info, Leaf, ArrowLeft, Sparkles } from 'lucide-react';
+import { Download, Info, Leaf, ArrowLeft, Sparkles, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
 
 export const TopBar: React.FC = () => {
   const router = useRouter();
-  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen, setShareOpen } = useEditorState();
+  const { getTotalPrice, getUsedAssets, canvasItems, cardBackground, setCheckoutOpen, setShareOpen, clearCanvas } = useEditorState();
   const [isHovering, setIsHovering] = useState(false);
   const totalPrice = getTotalPrice();
   const usedAssets = getUsedAssets();
@@ -34,6 +34,8 @@ export const TopBar: React.FC = () => {
     }, 100);
   };
 
+  const isCanvasEmpty = !cardBackground && canvasItems.length === 0;
+
   return (
     <div style={styles.topBar} onClick={(e) => e.stopPropagation()}>
       <div style={styles.leftSection}>
@@ -54,9 +56,27 @@ export const TopBar: React.FC = () => {
 
       <div style={styles.actions}>
         <button
+          style={{
+            ...styles.resetBtn,
+            opacity: isCanvasEmpty ? 0.5 : 1,
+            cursor: isCanvasEmpty ? 'not-allowed' : 'pointer'
+          }}
+          onClick={() => {
+            if (window.confirm("確定要清空畫布嗎？此動作將會清除所有圖層與背景，且無法復原。")) {
+              clearCanvas();
+            }
+          }}
+          disabled={isCanvasEmpty}
+          title="清空畫布重來"
+        >
+          <RotateCcw size={16} />
+          重設畫布
+        </button>
+
+        <button
           style={styles.digitalCardBtn}
           onClick={() => setShareOpen(true)}
-          disabled={!cardBackground && canvasItems.length === 0}
+          disabled={isCanvasEmpty}
         >
           <Sparkles size={16} />
           分享賀卡
@@ -65,7 +85,7 @@ export const TopBar: React.FC = () => {
         <button 
           style={styles.exportBtn}
           onClick={handleExport}
-          disabled={!cardBackground && canvasItems.length === 0}
+          disabled={isCanvasEmpty}
         >
           <Download size={16} />
           匯出設計
@@ -187,6 +207,19 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.2s',
     boxShadow: '0 2px 12px rgba(130, 90, 40, 0.35)',
     letterSpacing: '0.03em',
+  },
+  resetBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    color: 'var(--color-brown-500)',
+    border: '1px solid var(--color-border)',
+    borderRadius: 'var(--radius-full)',
+    fontWeight: 500,
+    fontSize: '14px',
+    transition: 'all 0.2s',
   },
   priceContainer: {
     position: 'relative',

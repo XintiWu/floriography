@@ -24,13 +24,14 @@ const DIM = (s: string) => `\x1b[2m${s}\x1b[0m`;
 type TestResult = { name: string; pass: boolean; detail: string; skipped?: boolean };
 const results: TestResult[] = [];
 
-function test(name: string, fn: () => void | Promise<void>): Promise<void> {
-  return Promise.resolve(fn())
-    .then(() => results.push({ name, pass: true, detail: "OK" }))
-    .catch((e: unknown) => {
-      const msg = e instanceof Error ? e.message : String(e);
-      results.push({ name, pass: false, detail: msg });
-    });
+async function test(name: string, fn: () => any): Promise<void> {
+  try {
+    await fn();
+    results.push({ name, pass: true, detail: "OK" });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    results.push({ name, pass: false, detail: msg });
+  }
 }
 
 function skip(name: string, reason: string) {
