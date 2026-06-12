@@ -1,12 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getOciDesignCards } from "@/lib/catalog";
+import { isDbConfigured } from "@/lib/dbConfig";
 import {
   normalizeMoodPartForScoring,
   splitTagField,
 } from "@/lib/parseStoryRules";
 import type { Card } from "@/lib/types";
 
-export type CatalogCard = Card & { indexText: string };
+export type CatalogCard = Card & {
+  indexText: string;
+  /** Gemini text-embedding-004 vector (768-dim). Present when built with GEMINI_API_KEY. */
+  embedding?: number[];
+};
 
 export type FlowerCatalogData = {
   cards: CatalogCard[];
@@ -40,22 +46,118 @@ const WEIGHTS = {
   budgetFarPenalty: -25,
 };
 
+/** Weight to give cosine similarity score (scaled 0–1) in the hybrid scorer */
+const EMBED_WEIGHT = 60;
+
 let catalogCache: FlowerCatalogData | null = null;
 
-export function getFlowerCatalog(): FlowerCatalogData {
+function buildIndexText(card: Card): string {
+  return [
+    card.tags.flowers.join(" "),
+    card.title,
+    card.blurb ?? "",
+    card.description ?? "",
+    card.tags.occasions.join(" "),
+    card.tags.moods.join(" "),
+    card.tags.colors.join(" "),
+  ]
+    .join("\n")
+    .toLowerCase();
+}
+
+function cardsToCatalogData(cards: Card[], builtAt?: string): FlowerCatalogData {
+  const catalogCards: CatalogCard[] = cards.map((card) => ({
+    ...card,
+    indexText: buildIndexText(card),
+  }));
+  const nameSet = new Set<string>();
+  for (const c of catalogCards) {
+    for (const f of c.tags.flowers) nameSet.add(f);
+  }
+  const dictionary = [...nameSet].sort((a, b) => b.length - a.length);
+  return {
+    cards: catalogCards,
+    dictionary,
+    builtAt: builtAt ?? new Date().toISOString(),
+  };
+}
+
+function loadFlowerCatalogFromFile(): FlowerCatalogData {
   const path = join(process.cwd(), "src/data/flowerCatalog.json");
   if (!existsSync(path)) {
     throw new Error(
       "找不到 src/data/flowerCatalog.json。請在專案根目錄執行：npm run build:catalog（或 npm run dev，會自動執行 predev）"
     );
   }
-  if (process.env.NODE_ENV !== "production") {
-    return JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+  return JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+}
+
+// ── Embedding helpers (runtime) ─────────────────────────────────────────
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
   }
-  if (!catalogCache) {
-    catalogCache = JSON.parse(readFileSync(path, "utf8")) as FlowerCatalogData;
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+/**
+ * Call Gemini text-embedding-004 at runtime to embed the user query.
+ * Returns null on any failure so callers can fall back to string matching.
+ */
+export async function embedQueryText(text: string): Promise<number[] | null> {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) return null;
+  try {
+    const model = "gemini-embedding-001";
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const values: number[] | undefined = data?.embedding?.values;
+    return values && values.length > 0 ? values : null;
+  } catch {
+    return null;
   }
-  return catalogCache;
+}
+
+
+/** 情境推薦目錄：優先 OCI `designs`（與花語 `assets` 相同連線），否則本地 flowerCatalog.json */
+export async function getFlowerCatalog(): Promise<FlowerCatalogData> {
+  if (process.env.NODE_ENV === "production" && catalogCache) {
+    return catalogCache;
+  }
+
+  if (isDbConfigured()) {
+    const ociCards = await getOciDesignCards();
+    if (ociCards?.length) {
+      const data = cardsToCatalogData(ociCards);
+      if (process.env.NODE_ENV === "production") {
+        catalogCache = data;
+      }
+      return data;
+    }
+  }
+
+  const data = loadFlowerCatalogFromFile();
+  if (process.env.NODE_ENV === "production") {
+    catalogCache = data;
+  }
+  return data;
 }
 
 export function toPublicCard(c: CatalogCard): Card {
@@ -281,15 +383,83 @@ export function scoreCatalogLocally(
   return normalizeDisplayScores(ranked);
 }
 
-export function recommendFlowerDb(
+export async function recommendFlowerDb(
   input: RecommendInput,
   top = 3
-): ScoredRecommendation[] {
-  const data = getFlowerCatalog();
+): Promise<ScoredRecommendation[]> {
+  const data = await getFlowerCatalog();
   const ranked = scoreCatalogLocally(input, data);
   return ranked.slice(0, top).map(({ card, score, why }) => ({
     card: toPublicCard(card),
     score,
     why,
   }));
+}
+
+/**
+ * Async version of scoreCatalogLocally that uses cosine similarity when
+ * card embeddings are present. Falls back to the sync string-based scorer
+ * if embeddings are missing or the query embed call fails.
+ *
+ * Usage: replaces scoreCatalogLocally in the recommend API pipeline.
+ */
+export async function scoreCatalogWithEmbedding(
+  input: RecommendInput,
+  data: FlowerCatalogData
+): Promise<Array<{ card: CatalogCard; score: number; why: string }>> {
+  // Check whether the catalog has embeddings
+  const hasEmbeddings = data.cards.some((c) => c.embedding && c.embedding.length > 0);
+  if (!hasEmbeddings) {
+    // Fall back to string-based scorer
+    return scoreCatalogLocally(input, data);
+  }
+
+  // Build query text: prefer story, then combine structured fields
+  const queryParts: string[] = [];
+  if (input.story?.trim()) queryParts.push(input.story.trim());
+  if (input.occasion?.trim()) queryParts.push(input.occasion.trim());
+  if (input.mood?.trim()) queryParts.push(input.mood.trim());
+  if (input.color?.trim()) queryParts.push(input.color.trim());
+  if (input.recipient?.trim()) queryParts.push(input.recipient.trim());
+  if (input.flowerMeaning?.trim()) queryParts.push(input.flowerMeaning.trim());
+  const queryText = queryParts.join("、");
+
+  const queryVec = queryText ? await embedQueryText(queryText) : null;
+
+  if (!queryVec) {
+    // Embed call failed or no text — fall back
+    return scoreCatalogLocally(input, data);
+  }
+
+  const recipientN = input.recipient ? normalizeLoose(input.recipient) : "";
+
+  const ranked = data.cards.map((card) => {
+    // ─ Cosine similarity (semantic) ────────────────────────────────
+    let rawScore = 0;
+    const notes: FieldNotes = {};
+
+    if (card.embedding && card.embedding.length > 0) {
+      const sim = cosineSimilarity(queryVec, card.embedding);
+      // sim is typically 0.5~0.95 for relevant content; scale to weight range
+      rawScore += sim * EMBED_WEIGHT;
+      notes.occasion = `語意相似度 ${(sim * 100).toFixed(0)}%`;
+    }
+
+    // ─ Budget scoring (preserve exact logic) ──────────────────────────
+    const { delta: bDelta, note: budgetNote } = scoreBudget(input.budget, card.priceTwd);
+    rawScore += bDelta;
+    if (budgetNote) notes.budget = budgetNote;
+
+    // ─ Recipient index boost (cheap text check) ────────────────────
+    if (recipientN && card.indexText.includes(recipientN)) {
+      rawScore += WEIGHTS.recipient;
+      notes.recipient = `敘事索引呼應送禮對象「${input.recipient}」`;
+    }
+
+    const why = buildStructuredWhy(input, notes);
+    return { card, rawScore, why };
+  });
+
+  ranked.sort((a, b) => b.rawScore - a.rawScore);
+  return normalizeDisplayScores(ranked);
 }

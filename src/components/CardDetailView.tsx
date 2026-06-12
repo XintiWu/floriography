@@ -267,7 +267,12 @@ export function CardDetailView({ cardId }: { cardId: string }) {
                     y: [-12, 12, -12],
                     rotate: [-0.6, 0.6, -0.6]
                   }}
-                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ 
+                    scale: { duration: 0.8, ease: "easeOut" },
+                    opacity: { duration: 0.8, ease: "easeOut" },
+                    y: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+                    rotate: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+                  }}
                 >
                   <img src={card.image_data} alt={displayTitle || "壓花賀卡"} style={styles.cardImg} />
                   <div style={styles.cardGlow} />
@@ -278,7 +283,7 @@ export function CardDetailView({ cardId }: { cardId: string }) {
                       position: "absolute",
                       inset: 0,
                       background:
-                        "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%)",
+                        "linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%)",
                       pointerEvents: "none",
                     }}
                     animate={{ x: ["-100%", "200%"] }}

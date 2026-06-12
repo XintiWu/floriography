@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev --turbopack",
     "predev": "npm run build:catalog",
     "build:catalog": "tsx scripts/build-flower-catalog.ts",
     "verify:descriptions": "node scripts/verify-descriptions.mjs",
@@ -14,7 +15,11 @@
     "test:parse-fields": "tsx scripts/test-parse-story-fields.ts",
     "test:consultant-scenarios": "tsx scripts/run-consultant-scenarios.ts",
     "import:designs": "tsx scripts/import-cards-to-designs.ts",
-    "import:designs:dry": "tsx scripts/import-cards-to-designs.ts --dry-run"
+    "import:designs:dry": "tsx scripts/import-cards-to-designs.ts --dry-run",
+    "embed:catalog": "tsx scripts/embed-catalog.ts",
+    "embed:catalog:force": "tsx scripts/embed-catalog.ts --force",
+    "test:embedding": "tsx scripts/test-embedding.ts",
+    "test:semantic-vs-string": "tsx scripts/test-semantic-vs-string.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
