@@ -1,6 +1,7 @@
 /** 從 LLM 回傳文字抽出 JSON 物件（含截斷修復與 recommendations 搶救） */
 export function extractJsonObject(text: string): unknown {
-  const trimmed = stripCodeFences(text.trim());
+  let cleaned = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const trimmed = stripCodeFences(cleaned);
   try {
     return JSON.parse(trimmed);
   } catch {
@@ -28,7 +29,7 @@ export function extractJsonObject(text: string): unknown {
 }
 
 function stripCodeFences(text: string): string {
-  const m = text.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
+  const m = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return m ? m[1].trim() : text;
 }
 
