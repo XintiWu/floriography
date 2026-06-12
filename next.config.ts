@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'qjshekkscvghlzhpkzju.supabase.co',
+        hostname: 'qgztehnwwsjdutqavenu.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
@@ -18,12 +18,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/FlowerDB/images/:dir/:filename([^/\\.]+)\\.:ext(jpg|jpeg|png|JPG|JPEG|PNG)",
-        destination: "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
+        destination: "https://qgztehnwwsjdutqavenu.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
         permanent: false,
       },
       {
         source: "/FlowerDB_nobg/images/:filename([^/\\.]+)\\.:ext(jpg|jpeg|png|JPG|JPEG|PNG)",
-        destination: "https://qjshekkscvghlzhpkzju.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
+        destination: "https://qgztehnwwsjdutqavenu.supabase.co/storage/v1/object/public/designs/assets/:filename%5Fprocessed.png",
         permanent: false,
       },
     ];
