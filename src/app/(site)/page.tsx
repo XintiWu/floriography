@@ -4,6 +4,7 @@ import { Container } from "@/components/Container";
 import { getCards } from "@/lib/catalog";
 import { ServiceOverview } from "../../components/home/ServiceOverview";
 import { HomeHighlights } from "@/components/home/HomeHighlights";
+import { CraftProcess } from "@/components/home/CraftProcess";
 
 export default async function Home() {
   const cards = await getCards();
@@ -51,6 +52,8 @@ export default async function Home() {
           <HomeHighlights cards={highlightCards} />
         </Container>
       </section>
+
+      <CraftProcess />
 
       <ServiceOverview />
 
