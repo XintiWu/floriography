@@ -33,7 +33,7 @@ export default async function Home() {
         <Container>
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[color:var(--muted)]">
                 NEW & HIGHLIGHTS
               </p>
               <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
@@ -58,7 +58,7 @@ export default async function Home() {
         <Container>
           <div className="grid gap-12 md:grid-cols-12 md:items-start">
             <div className="md:col-span-5">
-              <p className="text-[11px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[color:var(--muted)]">
                 HOW IT WORKS
               </p>
               <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
@@ -78,13 +78,13 @@ export default async function Home() {
                   key={title}
                   className="border-t border-[color:var(--line)] py-8 first:border-t-0 first:pt-0"
                 >
-                  <p className="text-[10px] font-medium tracking-[0.2em] uppercase text-[color:var(--muted)]">
+                  <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[color:var(--muted)]">
                     STEP {idx + 1}
                   </p>
-                  <p className="mt-3 text-base font-semibold tracking-wide">
+                  <p className="mt-3 text-[16px] font-semibold tracking-wide">
                     {title}
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-[color:var(--muted)]">
+                  <p className="mt-2 text-[15px] leading-relaxed text-[color:var(--muted)]">
                     {desc}
                   </p>
                 </li>

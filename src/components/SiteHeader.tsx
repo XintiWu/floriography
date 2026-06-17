@@ -68,10 +68,10 @@ export function SiteHeader() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "px-3 py-2 text-[13px] font-medium tracking-wide transition-colors",
+                  "px-3 py-2 text-[15px] font-medium tracking-wide transition-colors",
                   active
                     ? "text-black dark:text-white"
-                    : "text-[color:var(--muted)] hover:bg-black/5 dark:hover:bg-white/10"
+                    : "text-[color:var(--muted)] hover:bg-black/10 dark:hover:bg-white/15"
                 )}
               >
                 {item.label}
@@ -86,7 +86,7 @@ export function SiteHeader() {
             <div className="relative">
               <button 
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 border border-[color:var(--line)] px-3 py-1.5 transition-colors hover:bg-black/5"
+                className="flex items-center gap-2 border border-[color:var(--line)] px-3 py-1.5 transition-colors hover:bg-black/10"
               >
                 <div className="flex h-6 w-6 items-center justify-center bg-[color:var(--line)]">
                   <UserIcon size={14} />
@@ -119,7 +119,7 @@ export function SiteHeader() {
           ) : (
               <button
               onClick={() => setIsAuthOpen(true)}
-              className="flex items-center gap-2 border border-[color:var(--line)] px-4 py-2 text-[13px] font-medium tracking-wide transition-colors hover:bg-black/5"
+              className="flex items-center gap-2 border border-[color:var(--line)] px-4 py-2 text-[15px] font-medium tracking-wide transition-colors hover:bg-black/10"
             >
               <LogIn size={14} />
               登入

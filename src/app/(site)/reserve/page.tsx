@@ -28,7 +28,7 @@ export default async function ReservePage({
           <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl tracking-[0.06em] sm:text-4xl">
             預訂 / 詢價
           </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-[color:var(--muted)]">
+          <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[color:var(--muted)]">
             目前以台灣面交/自取為主。你填完資料後，我們會用你留下的聯絡方式確認時間、地點與成品細節。
           </p>
           {card ? (
@@ -69,15 +69,15 @@ export default async function ReservePage({
           </div>
           <aside className="lg:col-span-5 lg:sticky lg:top-24">
             <div className="rounded-3xl border border-[color:var(--line)] bg-[color:var(--card)] p-6">
-              <p className="text-xs font-semibold tracking-[0.22em] text-[color:var(--muted)]">
+              <p className="text-[13px] font-semibold tracking-[0.22em] text-[color:var(--muted)]">
                 提醒
               </p>
-              <ul className="mt-4 grid gap-3 text-sm leading-7 text-[color:var(--muted)]">
+              <ul className="mt-4 grid gap-3 text-[15px] leading-7 text-[color:var(--muted)]">
                 <li>面交地點：請填你方便的捷運站/地標（可協調）。</li>
                 <li>時間：建議填 2–3 個時段，確認會更快。</li>
                 <li>客製：可在備註填「用途、顏色、想表達的話」。</li>
               </ul>
-              <p className="mt-5 text-xs leading-6 text-[color:var(--muted)]">
+              <p className="mt-5 text-[13px] leading-6 text-[color:var(--muted)]">
                 我們會在確認後才安排製作與交付，不需先付款。
               </p>
             </div>

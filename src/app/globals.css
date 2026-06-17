@@ -3,11 +3,11 @@
 :root {
   --paper: #fbfaf7;
   --ink: #1a1a18;
-  --muted: #6d6a63;
+  --muted: #4a4740;       /* 加深：對比值從 ~4.0 提升至 ~6.5:1 */
   --card: #ffffff;
-  --line: rgba(26, 26, 24, 0.12);
-  --accent: #b96a6a; /* dried-rose */
-  --accent-2: #a2a86b; /* olive */
+  --line: rgba(26, 26, 24, 0.22);  /* 加深：分隔線更清晰可見 */
+  --accent: #9c3d3d;     /* 加深：對比值提升至 ~5.2:1 */
+  --accent-2: #8a9045;   /* 加深：olive 也同步提升 */
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -38,11 +38,11 @@
   :root {
     --paper: #0d0f0e;
     --ink: #f3f1ea;
-    --muted: #b9b4a8;
+    --muted: #c8c3b5;      /* 加亮：深色模式下提升對比值 */
     --card: #121514;
-    --line: rgba(243, 241, 234, 0.16);
-    --accent: #d48787;
-    --accent-2: #bac27d;
+    --line: rgba(243, 241, 234, 0.28);  /* 加亮：深色模式分隔線更明顯 */
+    --accent: #e89a9a;     /* 加亮：深色模式強調色更清晰 */
+    --accent-2: #ccd485;   /* 加亮：olive */
 
     --background: var(--paper);
     --foreground: var(--ink);
@@ -53,6 +53,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);
+  font-size: 16px;       /* 基準字體大小，提升中文可讀性 */
+  line-height: 1.8;      /* 較寬鬆的行高，減少閱讀壓力 */
 }
 
 .grain {
