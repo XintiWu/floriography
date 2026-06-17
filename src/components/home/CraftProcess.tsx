@@ -33,30 +33,18 @@ export function CraftProcess() {
     <section className="border-t border-[color:var(--line)] py-24 sm:py-32">
       <Container>
         {/* 區塊標題 */}
-        <div className="grid gap-6 md:grid-cols-12 md:items-end">
-          <div className="md:col-span-7">
-            <p className="text-xs font-semibold tracking-[0.22em] uppercase text-[color:var(--muted)]">
-              CRAFT &amp; MATERIALS
-            </p>
-            <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
-              純手工壓花工藝
-            </h2>
-            <p className="mt-5 max-w-lg text-[15px] leading-8 text-[color:var(--muted)]">
-              每一張卡片都從一株真實的鮮花開始。
-              從採摘、壓製、到護貝封存，不省略任何一個步驟，
-              讓花朵的模樣與情感一起被留住。
-            </p>
-          </div>
-
-          {/* 右側引言 */}
-          <blockquote className="md:col-span-5 md:justify-self-end border-l-2 border-[color:var(--accent)] pl-5">
-            <p className="text-[15px] italic leading-8 text-[color:var(--muted)]">
-              「花材採純新鮮花材，乾燥紙壓乾，完全乾燥再放入護貝膜組裝，進護貝機壓縮成成品。」
-            </p>
-            <footer className="mt-3 text-xs font-semibold tracking-[0.18em] uppercase text-[color:var(--accent)]">
-              — Floriography 製作理念
-            </footer>
-          </blockquote>
+        <div className="max-w-3xl">
+          <p className="text-xs font-semibold tracking-[0.22em] uppercase text-[color:var(--muted)]">
+            CRAFT &amp; MATERIALS
+          </p>
+          <h2 className="mt-4 font-[family-name:var(--font-display)] text-3xl tracking-[0.04em] sm:text-4xl">
+            純手工壓花工藝
+          </h2>
+          <p className="mt-5 max-w-lg text-[15px] leading-8 text-[color:var(--muted)]">
+            每一張卡片都從一株真實的鮮花開始。
+            從採摘、壓製、到護貝封存，不省略任何一個步驟，
+            讓花朵的模樣與情感一起被留住。
+          </p>
         </div>
 
         {/* 四步驟 */}
