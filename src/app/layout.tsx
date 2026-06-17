@@ -44,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="zh-Hant"
-      className={`${ebGaramond.variable} ${raleway.variable} ${notoSansTC.variable} ${cormorant.variable} antialiased`}
+      className={`${ebGaramond.variable} ${raleway.variable} ${notoSansTC.variable} ${cormorant.variable}`}
     >
       <body className="min-h-screen flex flex-col grain">
         {children}

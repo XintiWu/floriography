@@ -54,6 +54,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-body);
   font-size: 16px;       /* 基準字體大小，提升中文可讀性 */
+  font-weight: 500;      /* medium：讓中文字體更飽滿清晰 */
   line-height: 1.8;      /* 較寬鬆的行高，減少閱讀壓力 */
 }
 
