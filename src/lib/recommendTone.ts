@@ -112,7 +112,7 @@ export function sanitizeNonRomanticCopy(text: string): string {
     [/愛情/g, "親情關懷"],
     [/表達愛意/g, "表達心意"],
     [/愛意/g, "溫暖心意"],
-    [/植物標本卡/g, "這件作品"],
+    [/花卡/g, "這件作品"],
   ];
   for (const [re, rep] of rules) {
     s = s.replace(re, rep);
