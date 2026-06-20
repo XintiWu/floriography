@@ -1,15 +1,27 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TopBar } from './components/TopBar';
 import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { CanvasArea } from './components/CanvasArea';
 import { useEditorState } from './store/useEditorState';
+import { useIsMobile } from './hooks/useIsMobile';
 
 import { CheckoutOverlay } from './components/CheckoutOverlay';
 import { ShareOverlay } from './components/ShareOverlay';
 
+import { MobileToolbar, MobileTab } from './components/mobile/MobileToolbar';
+import { BottomSheet } from './components/mobile/BottomSheet';
+import { MobileFlowerPanel } from './components/mobile/MobileFlowerPanel';
+import { MobileCardPanel } from './components/mobile/MobileCardPanel';
+import { MobileTextPanel } from './components/mobile/MobileTextPanel';
+import { MobileLayerPanel } from './components/mobile/MobileLayerPanel';
+
 function App() {
   const { isCheckoutOpen, isShareOpen } = useEditorState();
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState<MobileTab | null>(null);
+
   const clearSelection = () => {
     useEditorState.getState().setSelectedItem(null);
   };
@@ -28,72 +40,102 @@ function App() {
         position: 'relative',
       }}
     >
-      <TopBar />
-      
-      <div 
-        className="main-workspace"
-        style={{
-          display: 'flex',
-          flex: 1,
-          overflow: 'hidden',
-          position: 'relative',
-        }}
-      >
-        <AnimatePresence>
-          {!isCheckoutOpen && !isShareOpen && (
-            <motion.div
-              key="left-sidebar"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              style={{ overflow: 'hidden' }}
-            >
-              <LeftSidebar />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {isMobile && isCheckoutOpen ? (
+        <CheckoutOverlay />
+      ) : (
+        <>
+          <TopBar />
+          
+          <div 
+            className="main-workspace"
+            style={{
+              display: 'flex',
+              flex: 1,
+              overflow: 'hidden',
+              position: 'relative',
+              paddingBottom: isMobile ? 'calc(60px + env(safe-area-inset-bottom, 0px))' : 0,
+            }}
+          >
+            {isMobile ? (
+              <>
+                <CanvasArea />
+                <MobileToolbar activeTab={activeTab} setActiveTab={setActiveTab} />
+                <BottomSheet 
+                  activeTab={activeTab} 
+                  onClose={() => setActiveTab(null)}
+                  title={
+                    activeTab === 'flower' ? '選擇花材' :
+                    activeTab === 'card' ? '選擇卡片背景' :
+                    activeTab === 'text' ? '編輯文字' :
+                    activeTab === 'layer' ? '花材與花語' : ''
+                  }
+                >
+                  {activeTab === 'flower' && <MobileFlowerPanel />}
+                  {activeTab === 'card' && <MobileCardPanel />}
+                  {activeTab === 'text' && <MobileTextPanel />}
+                  {activeTab === 'layer' && <MobileLayerPanel />}
+                </BottomSheet>
+              </>
+            ) : (
+              <>
+                <AnimatePresence>
+                  {!isCheckoutOpen && !isShareOpen && (
+                    <motion.div
+                      key="left-sidebar"
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 320, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <LeftSidebar />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-        <motion.div 
-          layout
-          style={{ 
-            flex: 1, 
-            display: 'flex', 
-            position: 'relative',
-            zIndex: 1,
-            height: '100%',
-          }}
-        >
-          <CanvasArea />
-        </motion.div>
+                <motion.div 
+                  layout
+                  style={{ 
+                    flex: 1, 
+                    display: 'flex', 
+                    position: 'relative',
+                    zIndex: 1,
+                    height: '100%',
+                  }}
+                >
+                  <CanvasArea />
+                </motion.div>
 
-        <AnimatePresence initial={false}>
-          {!isCheckoutOpen && !isShareOpen ? (
-            <motion.div
-              key="right-sidebar"
-              initial={{ width: 0, opacity: 0, x: 50 }}
-              animate={{ width: 280, opacity: 1, x: 0 }}
-              exit={{ width: 0, opacity: 0, x: 50 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              style={{ overflow: 'hidden' }}
-            >
-              <RightSidebar />
-            </motion.div>
-          ) : isCheckoutOpen ? (
-            <motion.div
-              key="checkout-panel"
-              initial={{ width: 0, opacity: 0, x: 100 }}
-              animate={{ width: 500, opacity: 1, x: 0 }}
-              exit={{ width: 0, opacity: 0, x: 100 }}
-              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              style={{ overflow: 'hidden' }}
-            >
-              <CheckoutOverlay />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-      </div>
+                <AnimatePresence initial={false}>
+                  {!isCheckoutOpen && !isShareOpen ? (
+                    <motion.div
+                      key="right-sidebar"
+                      initial={{ width: 0, opacity: 0, x: 50 }}
+                      animate={{ width: 280, opacity: 1, x: 0 }}
+                      exit={{ width: 0, opacity: 0, x: 50 }}
+                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <RightSidebar />
+                    </motion.div>
+                  ) : isCheckoutOpen ? (
+                    <motion.div
+                      key="checkout-panel"
+                      initial={{ width: 0, opacity: 0, x: 100 }}
+                      animate={{ width: 500, opacity: 1, x: 0 }}
+                      exit={{ width: 0, opacity: 0, x: 100 }}
+                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <CheckoutOverlay />
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Immersive Full Page Share Overlay */}
       <AnimatePresence>

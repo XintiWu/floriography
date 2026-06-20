@@ -128,3 +128,34 @@
   background: #8B5A2B !important;
   opacity: 0.3;
 }
+
+/* Mobile Touch Optimization */
+@media (max-width: 768px) {
+  .moveable-control {
+    width: 20px !important;
+    height: 20px !important;
+    margin-top: -10px !important;
+    margin-left: -10px !important;
+    border-radius: 50% !important;
+    border-width: 2.5px !important;
+  }
+  
+  .moveable-rotation {
+    height: 28px !important;
+  }
+
+  .moveable-rotation .moveable-control {
+    width: 20px !important;
+    height: 20px !important;
+    margin-top: -10px !important;
+    margin-left: -10px !important;
+  }
+  
+  /* Prevent automatic page zooming on iOS input focus */
+  .studio-root input,
+  .studio-root select,
+  .studio-root textarea {
+    font-size: 16px !important;
+  }
+}
+

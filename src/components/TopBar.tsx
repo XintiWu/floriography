@@ -5,6 +5,7 @@ import { useEditorState } from '../store/useEditorState';
 import { Download, Info, Leaf, ArrowLeft, Sparkles, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 export const TopBar: React.FC = () => {
   const router = useRouter();
@@ -12,6 +13,7 @@ export const TopBar: React.FC = () => {
   const [isHovering, setIsHovering] = useState(false);
   const totalPrice = getTotalPrice();
   const usedAssets = getUsedAssets();
+  const isMobile = useIsMobile();
 
   const handleExport = async () => {
     const node = document.getElementById('canvas-container');
@@ -35,6 +37,51 @@ export const TopBar: React.FC = () => {
   };
 
   const isCanvasEmpty = !cardBackground && canvasItems.length === 0;
+
+  if (isMobile) {
+    return (
+      <div style={styles.topBarMobile} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.leftSectionMobile}>
+          <button 
+            style={styles.backBtnMobile}
+            onClick={() => router.push('/')}
+            title="返回"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div style={styles.logoContainerMobile}>
+            <Leaf size={18} color="var(--color-accent)" />
+            <h1 style={styles.titleMobile}>Floriography</h1>
+          </div>
+        </div>
+
+        <div style={styles.actionsMobile}>
+          <button 
+            style={{
+              ...styles.exportBtnMobile,
+              opacity: isCanvasEmpty ? 0.5 : 1,
+            }}
+            onClick={handleExport}
+            disabled={isCanvasEmpty}
+            title="匯出設計"
+          >
+            <Download size={16} />
+          </button>
+
+          <button
+            style={{
+              ...styles.priceBtnMobile,
+              opacity: isCanvasEmpty ? 0.6 : 1,
+            }}
+            onClick={() => !isCanvasEmpty && setCheckoutOpen(true)}
+            disabled={isCanvasEmpty}
+          >
+            NT$ {totalPrice}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.topBar} onClick={(e) => e.stopPropagation()}>
@@ -309,5 +356,76 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center',
     transition: 'all 0.2s',
     boxShadow: 'var(--shadow-md)',
+  },
+  topBarMobile: {
+    height: '52px',
+    backgroundColor: 'var(--color-surface)',
+    borderBottom: '1px solid var(--color-border)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 12px',
+    position: 'relative',
+    zIndex: 100,
+  },
+  leftSectionMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  backBtnMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    backgroundColor: 'var(--color-oat-300)',
+    color: 'var(--color-brown-700)',
+    borderRadius: 'var(--radius-full)',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  logoContainerMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  titleMobile: {
+    fontSize: '15px',
+    fontWeight: 600,
+    color: 'var(--color-brown-700)',
+    letterSpacing: '0.3px',
+    margin: 0,
+  },
+  actionsMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  exportBtnMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    backgroundColor: 'var(--color-oat-300)',
+    color: 'var(--color-brown-700)',
+    borderRadius: 'var(--radius-full)',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  priceBtnMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '6px 12px',
+    backgroundColor: 'var(--color-accent)',
+    color: '#FFF',
+    borderRadius: 'var(--radius-full)',
+    fontSize: '13px',
+    fontWeight: 600,
+    boxShadow: 'var(--shadow-sm)',
+    border: 'none',
+    cursor: 'pointer',
   }
 };

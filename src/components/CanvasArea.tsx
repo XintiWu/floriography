@@ -2,13 +2,35 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useEditorState } from '../store/useEditorState';
 import type { Asset, CanvasItem } from '../types';
 import Moveable from 'react-moveable';
-
 import { motion } from 'framer-motion';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { Trash2 } from 'lucide-react';
 
 export const CanvasArea: React.FC = () => {
-  const { cardBackground, canvasItems, addItem, selectedItemId, setSelectedItem, isCheckoutOpen } = useEditorState();
+  const { cardBackground, canvasItems, addItem, selectedItemId, setSelectedItem, isCheckoutOpen, removeItem } = useEditorState();
   const containerRef = useRef<HTMLDivElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setScale(1);
+      return;
+    }
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        // Leave some padding on sides
+        const availableWidth = containerWidth - 32;
+        const newScale = Math.min(availableWidth / 450, 1);
+        setScale(newScale);
+      }
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [isMobile]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -51,50 +73,79 @@ export const CanvasArea: React.FC = () => {
 
   return (
     <div 
-      style={styles.canvasContainer} 
+      style={{
+        ...styles.canvasContainer,
+        padding: isMobile ? '16px' : '40px',
+        overflow: isMobile ? 'hidden' : 'auto',
+      }} 
       ref={containerRef}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <motion.div 
-        id="canvas-container" // For exporting
-        ref={dropZoneRef}
-        animate={{
-          scale: 1, // 強制固定為 1 以避免渲染時歪斜
-          boxShadow: isCheckoutOpen ? '0 30px 60px rgba(92, 64, 51, 0.15)' : 'var(--shadow-lg)',
-        }}
-        transition={{ 
-          type: 'spring', 
-          damping: 30, 
-          stiffness: 300,
-          mass: 0.8,
-        }}
-        style={{
-          ...styles.dropZone,
-          backgroundImage: cardBackground ? `url(${cardBackground.url})` : 'none',
-          backgroundColor: cardBackground ? 'transparent' : 'var(--color-oat-100)',
-          cursor: isCheckoutOpen ? 'default' : 'crosshair',
-          willChange: 'transform',
-          transform: 'translateZ(0)',
-        }}
-      >
-        {!cardBackground && (
-          <div style={styles.placeholderText}>
-            請從左側選擇卡片背景
-          </div>
-        )}
+      <div style={{
+        position: 'relative',
+        width: '450px',
+        height: '600px',
+        transform: `scale(${scale})`,
+        transformOrigin: 'center center',
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <motion.div 
+          id="canvas-container" // For exporting
+          ref={dropZoneRef}
+          animate={{
+            scale: 1, // 強制固定為 1 以避免渲染時歪斜
+            boxShadow: isCheckoutOpen ? '0 30px 60px rgba(92, 64, 51, 0.15)' : 'var(--shadow-lg)',
+          }}
+          transition={{ 
+            type: 'spring', 
+            damping: 30, 
+            stiffness: 300,
+            mass: 0.8,
+          }}
+          style={{
+            ...styles.dropZone,
+            backgroundImage: cardBackground ? `url(${cardBackground.url})` : 'none',
+            backgroundColor: cardBackground ? 'transparent' : 'var(--color-oat-100)',
+            cursor: isCheckoutOpen ? 'default' : 'crosshair',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+          }}
+        >
+          {!cardBackground && (
+            <div style={styles.placeholderText}>
+              請從下方選擇卡片背景
+            </div>
+          )}
 
-        {canvasItems
-          .filter(item => !item.hidden)
-          .sort((a, b) => a.zIndex - b.zIndex)
-          .map(item => (
-            <CanvasItemComponent 
-              key={item.id} 
-              item={item} 
-              isSelected={selectedItemId === item.id && !isCheckoutOpen} 
-            />
-          ))}
-      </motion.div>
+          {canvasItems
+            .filter(item => !item.hidden)
+            .sort((a, b) => a.zIndex - b.zIndex)
+            .map(item => (
+              <CanvasItemComponent 
+                key={item.id} 
+                item={item} 
+                isSelected={selectedItemId === item.id && !isCheckoutOpen} 
+              />
+            ))}
+        </motion.div>
+      </div>
+
+      {selectedItemId && !isCheckoutOpen && isMobile && (
+        <button
+          style={styles.floatingDeleteBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            removeItem(selectedItemId);
+          }}
+          title="刪除選中項目"
+        >
+          <Trash2 size={20} />
+        </button>
+      )}
     </div>
   );
 };
@@ -325,5 +376,23 @@ const styles: Record<string, React.CSSProperties> = {
     height: '100%',
     objectFit: 'contain',
     pointerEvents: 'none', // Prevent image default drag
+  },
+  floatingDeleteBtn: {
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    width: '46px',
+    height: '46px',
+    borderRadius: '50%',
+    backgroundColor: '#ff4d4f',
+    color: '#FFF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 12px rgba(255, 77, 79, 0.4)',
+    zIndex: 107,
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
   }
 };
