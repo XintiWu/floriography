@@ -42,6 +42,8 @@ next-env.d.ts
 
 # local data
 /FlowerDB/
+/public/FlowerDB
+/public/FlowerDB_nobg
 public/images
 public/cards
 card/
